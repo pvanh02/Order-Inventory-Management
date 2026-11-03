@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><UserSecretsId>order-inventory-local</UserSecretsId></PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../OrderInventory.Application/OrderInventory.Application.csproj" />
+    <ProjectReference Include="../OrderInventory.Domain/OrderInventory.Domain.csproj" />
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+  </ItemGroup>
+</Project>

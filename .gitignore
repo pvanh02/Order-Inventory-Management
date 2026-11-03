@@ -1,0 +1,53 @@
+# Private local configuration and signing material
+.env
+.env.*
+!.env.example
+**/secrets.json
+**/appsettings.*.local.json
+**/*.pfx
+**/*.p12
+**/*.key
+**/*.pem
+
+# SQL Server backups and data files
+*.bak
+*.mdf
+*.ndf
+*.ldf
+
+# Local publish output
+publish/
+
+# .NET, editors and test output
+**/bin/
+**/obj/
+**/TestResults/
+**/coverage/
+**/*.trx
+**/*.coverage
+.vs/
+.idea/
+*.user
+*.suo
+
+# Local caches and isolated agent workspaces
+.local/
+.cache/
+.artifacts/
+.worktrees/
+.codex/
+*.log
+
+# Local-only tests, scripts, plans and working instructions
+/test/
+/tests/
+/scripts/
+/plan/
+/plans/
+AGENTS.md
+brief.md
+workflow.md
+worflow.md
+development-workflow.md
+report_template.md
+report template.md
