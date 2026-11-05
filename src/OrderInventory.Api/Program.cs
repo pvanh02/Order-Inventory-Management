@@ -63,7 +63,11 @@ try
     builder.Services.AddEndpointsApiExplorer();
     builder.Services.AddSwaggerGen(options =>
     {
-        options.SwaggerDoc("v1", new OpenApiInfo { Title = "Order & Inventory API", Version = "v1" });
+        options.SwaggerDoc("v1", new OpenApiInfo
+        {
+            Title = "Order & Inventory API", Version = "v1",
+            Description = "Quantities are integers. Product prices are positive whole VND; fractional prices are rejected. SKUs are normalized and immutable. Adjustments require a nonzero signed delta and reason. Writes are not automatically retried."
+        });
         options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
         {
             Type = SecuritySchemeType.Http, Scheme = "bearer", BearerFormat = "JWT",
@@ -74,6 +78,7 @@ try
             [new OpenApiSecuritySchemeReference("Bearer", document)] = []
         });
         options.OperationFilter<AnonymousOperationFilter>();
+        options.SchemaFilter<CatalogSchemaFilter>();
     });
 
     var app = builder.Build();
