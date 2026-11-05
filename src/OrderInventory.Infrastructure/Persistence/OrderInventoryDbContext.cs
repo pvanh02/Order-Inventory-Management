@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using OrderInventory.Domain.Identity;
+using OrderInventory.Domain.Catalog;
+using OrderInventory.Domain.Inventory;
 
 namespace OrderInventory.Infrastructure.Persistence;
 
@@ -7,6 +9,10 @@ public sealed class OrderInventoryDbContext(DbContextOptions<OrderInventoryDbCon
 {
     public DbSet<UserAccount> UserAccounts => Set<UserAccount>();
     public DbSet<SeedHistory> SeedHistory => Set<SeedHistory>();
+    public DbSet<Category> Categories => Set<Category>();
+    public DbSet<Product> Products => Set<Product>();
+    public DbSet<InventoryBalance> InventoryBalances => Set<InventoryBalance>();
+    public DbSet<InventoryMovement> InventoryMovements => Set<InventoryMovement>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -28,5 +34,6 @@ public sealed class OrderInventoryDbContext(DbContextOptions<OrderInventoryDbCon
         history.Property(item => item.SeedVersion).HasMaxLength(32).IsRequired();
         history.Property(item => item.SeedUnitKey).HasMaxLength(64).IsRequired();
         history.HasIndex(item => new { item.SeedVersion, item.SeedUnitKey }).IsUnique();
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(OrderInventoryDbContext).Assembly);
     }
 }

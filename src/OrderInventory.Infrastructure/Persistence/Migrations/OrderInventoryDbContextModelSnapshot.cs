@@ -22,6 +22,97 @@ namespace OrderInventory.Infrastructure.Persistence.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("OrderInventory.Domain.Catalog.Category", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IsDeleted");
+
+                    b.ToTable("Categories", (string)null);
+                });
+
+            modelBuilder.Entity("OrderInventory.Domain.Catalog.Product", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CategoryId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("Sku")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .UseCollation("Latin1_General_100_CI_AS");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasPrecision(18)
+                        .HasColumnType("decimal(18,0)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Sku")
+                        .IsUnique();
+
+                    b.HasIndex("CategoryId", "IsDeleted");
+
+                    b.ToTable("Products", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Products_UnitPrice", "[UnitPrice] > 0");
+                        });
+                });
+
             modelBuilder.Entity("OrderInventory.Domain.Identity.UserAccount", b =>
                 {
                     b.Property<int>("Id")
@@ -77,6 +168,70 @@ namespace OrderInventory.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("OrderInventory.Domain.Inventory.InventoryBalance", b =>
+                {
+                    b.Property<int>("ProductId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("OnHand")
+                        .HasColumnType("int");
+
+                    b.HasKey("ProductId");
+
+                    b.ToTable("InventoryBalances", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_InventoryBalances_Nonnegative", "[OnHand] >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("OrderInventory.Domain.Inventory.InventoryMovement", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("ActorId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BalanceAfter")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Delta")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("OccurredAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(512)
+                        .HasColumnType("nvarchar(512)");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActorId");
+
+                    b.HasIndex("OccurredAt");
+
+                    b.HasIndex("ProductId", "Id");
+
+                    b.ToTable("InventoryMovements", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_InventoryMovements_Balance", "[BalanceAfter] >= 0");
+
+                            t.HasCheckConstraint("CK_InventoryMovements_Delta", "[Delta] <> 0 AND [Delta] >= -2147483647");
+
+                            t.HasCheckConstraint("CK_InventoryMovements_Type", "([Type] = 1 AND [Delta] > 0) OR ([Type] = 2 AND LEN(LTRIM(RTRIM([Reason]))) > 0 AND [Reason] IS NOT NULL)");
+                        });
+                });
+
             modelBuilder.Entity("OrderInventory.Infrastructure.Persistence.SeedHistory", b =>
                 {
                     b.Property<int>("Id")
@@ -104,6 +259,39 @@ namespace OrderInventory.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("SeedHistory", (string)null);
+                });
+
+            modelBuilder.Entity("OrderInventory.Domain.Catalog.Product", b =>
+                {
+                    b.HasOne("OrderInventory.Domain.Catalog.Category", null)
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("OrderInventory.Domain.Inventory.InventoryBalance", b =>
+                {
+                    b.HasOne("OrderInventory.Domain.Catalog.Product", null)
+                        .WithOne()
+                        .HasForeignKey("OrderInventory.Domain.Inventory.InventoryBalance", "ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("OrderInventory.Domain.Inventory.InventoryMovement", b =>
+                {
+                    b.HasOne("OrderInventory.Domain.Identity.UserAccount", null)
+                        .WithMany()
+                        .HasForeignKey("ActorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("OrderInventory.Domain.Catalog.Product", null)
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 #pragma warning restore 612, 618
         }

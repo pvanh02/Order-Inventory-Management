@@ -5,6 +5,8 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using OrderInventory.Application.Abstractions;
 using OrderInventory.Application.Identity;
 using OrderInventory.Application.Seeding;
+using OrderInventory.Application.Catalog;
+using OrderInventory.Application.Inventory;
 using OrderInventory.Infrastructure.Configuration;
 using OrderInventory.Infrastructure.Identity;
 using OrderInventory.Infrastructure.Persistence;
@@ -31,6 +33,12 @@ public static class DependencyInjection
         services.AddScoped<UserAdministrationService>();
         services.AddScoped<BootstrapSeeder>();
         services.AddScoped<BootstrapSeedService>();
+        services.AddScoped<ICatalogData, EfCatalogData>();
+        services.AddScoped<IInventoryWriter, EfInventoryWriter>();
+        services.AddScoped<IInventoryData, EfInventoryData>();
+        services.AddScoped<CatalogService>();
+        services.AddScoped<InventoryService>();
+        services.AddScoped<CatalogSeedService>();
         return services;
     }
 }

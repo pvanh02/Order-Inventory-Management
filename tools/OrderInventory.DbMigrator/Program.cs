@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using OrderInventory.Infrastructure;
 using OrderInventory.Infrastructure.Configuration;
 using OrderInventory.Infrastructure.Persistence;
+using OrderInventory.Application.Seeding;
 
 try
 {
@@ -18,6 +19,7 @@ try
     var context = scope.ServiceProvider.GetRequiredService<OrderInventoryDbContext>();
     await context.Database.MigrateAsync();
     await scope.ServiceProvider.GetRequiredService<BootstrapSeeder>().SeedAsync();
+    await scope.ServiceProvider.GetRequiredService<CatalogSeedService>().SeedAsync();
     Console.WriteLine("Database migration and bootstrap completed.");
     return 0;
 }
