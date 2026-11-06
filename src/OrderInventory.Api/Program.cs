@@ -79,6 +79,7 @@ try
         });
         options.OperationFilter<AnonymousOperationFilter>();
         options.SchemaFilter<CatalogSchemaFilter>();
+        options.SchemaFilter<CustomerSchemaFilter>();
     });
 
     var app = builder.Build();
