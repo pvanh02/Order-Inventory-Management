@@ -1,6 +1,6 @@
 # Order & Inventory API
 
-REST API ASP.NET Core cho một cửa hàng. Hiện có nền tảng bốn tầng, đăng nhập JWT, quản trị tài khoản, CRUD danh mục/sản phẩm và sổ tồn kho. Khách hàng, đơn hàng và báo cáo còn thuộc các phase tiếp theo.
+REST API ASP.NET Core cho một cửa hàng. Hiện có nền tảng bốn tầng, đăng nhập JWT, quản trị tài khoản, CRUD danh mục/sản phẩm/khách hàng, lịch sử thay đổi khách hàng và sổ tồn kho. Đơn hàng và báo cáo còn thuộc các phase tiếp theo.
 
 - [COMET System Design](docs/system-design.md): requirement/UC/BR, quyết định Identity đã chốt và thiết kế Proposed/TBD còn lại.
 
@@ -76,12 +76,21 @@ Contract DTO/validation thuộc [Application Identity](src/OrderInventory.Applic
 | POST | `/api/v1/inventory/receipts` | UC-INV02 | Admin/Staff; 200 `MovementDto` |
 | POST | `/api/v1/inventory/adjustments` | UC-INV03 | Admin; 200 `MovementDto` |
 | GET | `/api/v1/inventory/movements` | UC-INV04 | Admin/Staff; 200, gồm lịch sử product đã xóa |
+| GET | `/api/v1/customers`, `/api/v1/customers/{id}` | UC-CUS01/02 | Admin/Staff; 200, ẩn customer đã xóa |
+| POST | `/api/v1/customers` | UC-CUS03 | Admin/Staff; 201 + Location |
+| PUT | `/api/v1/customers/{id}` | UC-CUS04 | Admin/Staff; 200, thay thế toàn bộ profile |
+| DELETE | `/api/v1/customers/{id}` | UC-CUS05 | Admin; 204, kể cả xóa lặp |
+| GET | `/api/v1/customers/{id}/history` | UC-CUS06 | Admin; 200, đọc được sau xóa mềm |
 
 Access JWT có hạn 30 phút, không refresh token. Đổi role hoặc active state thực sự làm token cũ hết hiệu lực ở request kế tiếp; không được hạ quyền hay vô hiệu hóa Admin active cuối cùng. Staff gọi user-management trả 403. Hợp đồng lỗi dùng ProblemDetails với `errorCode`, `traceId`, và `errors` cho validation; xem [ProblemResponses](src/OrderInventory.Api/Errors/ProblemResponses.cs) và các kiểm tra HTTP.
 
 Catalog/kho dùng số lượng nguyên và giá VND nguyên dương; phần lẻ bị từ chối. SKU trim/uppercase, không đổi sau tạo và không tái sử dụng sau xóa mềm. Category còn active product/product còn tồn trả 409 khi xóa. Điều chỉnh nhận signed delta khác 0 và lý do; mỗi thay đổi tồn ghi một movement trong cùng transaction, không tự retry khi mất phản hồi. Các bounds/query allowlist thuộc [CatalogRules](src/OrderInventory.Domain/Catalog/CatalogRules.cs), [CatalogValidation](src/OrderInventory.Application/Catalog/CatalogValidation.cs) và [Inventory contracts](src/OrderInventory.Application/Inventory/Contracts.cs); Swagger mô tả input limits qua [CatalogSchemaFilter](src/OrderInventory.Api/OpenApi/CatalogSchemaFilter.cs).
 
 Ví dụ query sản phẩm: `/api/v1/products?categoryId=1&minPrice=10000&inStock=true&sort=-unitPrice&page=1&pageSize=20`. History hỗ trợ `productId`, `actorId`, `type=Receipt|Adjustment`, `from`/`to` theo khoảng `[from,to)` và sort `id`/`occurredAt` có dấu `-` để đảo chiều. Không nhận actor hoặc tồn hiện tại từ payload catalog.
+
+Customer là dữ liệu khách hàng, không có tài khoản đăng nhập. Quyết định về trường/quyền/xóa/lịch sử nằm trong [COMET](docs/system-design.md#17-business-rule-register); DTO/query và validation thuộc [Customer contracts](src/OrderInventory.Application/Customers/Contracts.cs), [CustomerRules](src/OrderInventory.Domain/Customers/CustomerRules.cs), [CustomerValidation](src/OrderInventory.Application/Customers/CustomerValidation.cs); routing thuộc [CustomersController](src/OrderInventory.Api/Controllers/CustomersController.cs). Phone/email không cần duy nhất. PUT thay thế profile; optional bị bỏ qua hoặc rỗng sẽ thành null.
+
+Ví dụ tìm khách: `/api/v1/customers?search=An&sort=name&page=1&pageSize=20`; search tên/phone/email, sort `id`, `name`, `createdAt` và chiều ngược với `-`. List/history mặc định page 1, size 20, tối đa 100. History mới nhất trước, giữ thứ tự bằng ID khi trùng thời điểm. [CustomerService](src/OrderInventory.Application/Customers/CustomerService.cs) ghi lịch sử cùng transaction với thay đổi; sự kiện chỉ chứa actor ID, thời điểm, loại thao tác và tên trường, không lưu bản sao thông tin liên hệ. Update không thay đổi giá trị và xóa lặp không thêm sự kiện. Staff gọi delete/history trả 403.
 
 ## Cấu trúc và schema hiện có
 
@@ -95,6 +104,26 @@ erDiagram
     Products ||--|| InventoryBalances : has
     Products ||--o{ InventoryMovements : records
     UserAccounts ||--o{ InventoryMovements : performs
+    Customers ||--o{ CustomerAuditEntries : records
+    UserAccounts ||--o{ CustomerAuditEntries : performs
+    Customers {
+        int Id PK
+        nvarchar Name
+        nvarchar Phone "optional, not unique"
+        nvarchar Email "optional, not unique"
+        nvarchar Address
+        bit IsDeleted
+        datetimeoffset CreatedAt
+        rowversion RowVersion
+    }
+    CustomerAuditEntries {
+        bigint Id PK
+        int CustomerId FK
+        int ActorId FK
+        int Action
+        nvarchar ChangedFields "field names only"
+        datetimeoffset OccurredAt
+    }
     Categories {
         int Id PK
         nvarchar Name
