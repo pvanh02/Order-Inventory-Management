@@ -7,6 +7,7 @@ using OrderInventory.Application.Identity;
 using OrderInventory.Application.Seeding;
 using OrderInventory.Application.Catalog;
 using OrderInventory.Application.Inventory;
+using OrderInventory.Application.Customers;
 using OrderInventory.Infrastructure.Configuration;
 using OrderInventory.Infrastructure.Identity;
 using OrderInventory.Infrastructure.Persistence;
@@ -39,6 +40,8 @@ public static class DependencyInjection
         services.AddScoped<CatalogService>();
         services.AddScoped<InventoryService>();
         services.AddScoped<CatalogSeedService>();
+        services.AddScoped<ICustomerData, EfCustomerData>();
+        services.AddScoped<CustomerService>();
         return services;
     }
 }

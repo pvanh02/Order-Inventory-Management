@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using OrderInventory.Domain.Identity;
 using OrderInventory.Domain.Catalog;
 using OrderInventory.Domain.Inventory;
+using OrderInventory.Domain.Customers;
 
 namespace OrderInventory.Infrastructure.Persistence;
 
@@ -13,6 +14,8 @@ public sealed class OrderInventoryDbContext(DbContextOptions<OrderInventoryDbCon
     public DbSet<Product> Products => Set<Product>();
     public DbSet<InventoryBalance> InventoryBalances => Set<InventoryBalance>();
     public DbSet<InventoryMovement> InventoryMovements => Set<InventoryMovement>();
+    public DbSet<Customer> Customers => Set<Customer>();
+    public DbSet<CustomerAuditEntry> CustomerAuditEntries => Set<CustomerAuditEntry>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
