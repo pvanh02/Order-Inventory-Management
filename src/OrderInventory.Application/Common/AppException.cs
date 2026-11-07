@@ -25,3 +25,9 @@ public sealed class ValidationException(IReadOnlyDictionary<string, string[]> er
 {
     public IReadOnlyDictionary<string, string[]> Errors { get; } = errors;
 }
+
+public sealed class CommitOutcomeUnknownException(int orderId)
+    : AppException("commit_outcome_unknown", "The order commit outcome is unknown. Reconcile the order before submitting again.")
+{
+    public int OrderId { get; } = orderId;
+}
