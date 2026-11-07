@@ -1,6 +1,6 @@
 # Order & Inventory API
 
-REST API ASP.NET Core cho một cửa hàng. Hiện có nền tảng bốn tầng, đăng nhập JWT, quản trị tài khoản, CRUD danh mục/sản phẩm/khách hàng, lịch sử thay đổi khách hàng và sổ tồn kho. Đơn hàng và báo cáo còn thuộc các phase tiếp theo.
+REST API ASP.NET Core cho một cửa hàng. Hiện có nền tảng bốn tầng, đăng nhập JWT, quản trị tài khoản, CRUD danh mục/sản phẩm/khách hàng, lịch sử thay đổi khách hàng, sổ tồn kho và tạo/đọc chi tiết đơn hàng nguyên tử. Danh sách đơn, hoàn tất/hủy và báo cáo còn thuộc các bước tiếp theo.
 
 - [COMET System Design](docs/system-design.md): requirement/UC/BR, quyết định Identity đã chốt và thiết kế Proposed/TBD còn lại.
 
@@ -81,6 +81,8 @@ Contract DTO/validation thuộc [Application Identity](src/OrderInventory.Applic
 | PUT | `/api/v1/customers/{id}` | UC-CUS04 | Admin/Staff; 200, thay thế toàn bộ profile |
 | DELETE | `/api/v1/customers/{id}` | UC-CUS05 | Admin; 204, kể cả xóa lặp |
 | GET | `/api/v1/customers/{id}/history` | UC-CUS06 | Admin; 200, đọc được sau xóa mềm |
+| POST | `/api/v1/orders` | UC-ORD01 | Admin/Staff; 201 + Location, Pending; bắt buộc Customer chưa xóa |
+| GET | `/api/v1/orders/{id}` | UC-ORD03 | Admin/Staff xem mọi đơn; 200 OrderDto với snapshots |
 
 Access JWT có hạn 30 phút, không refresh token. Đổi role hoặc active state thực sự làm token cũ hết hiệu lực ở request kế tiếp; không được hạ quyền hay vô hiệu hóa Admin active cuối cùng. Staff gọi user-management trả 403. Hợp đồng lỗi dùng ProblemDetails với `errorCode`, `traceId`, và `errors` cho validation; xem [ProblemResponses](src/OrderInventory.Api/Errors/ProblemResponses.cs) và các kiểm tra HTTP.
 
@@ -94,6 +96,10 @@ Ví dụ tìm khách: `/api/v1/customers?search=An&sort=name&page=1&pageSize=20`
 
 ## Cấu trúc và schema hiện có
 
+Đơn hàng dùng [OrderService](src/OrderInventory.Application/Orders/OrderService.cs), [contracts](src/OrderInventory.Application/Orders/Contracts.cs) và [OrderPricingPolicy](src/OrderInventory.Application/Orders/OrderPricingPolicy.cs); HTTP tại [OrdersController](src/OrderInventory.Api/Controllers/OrdersController.cs). Tối đa 100 dòng đầu vào; gộp productId trùng, quantity sau gộp tối đa int.MaxValue. SKU/tên/giá lấy từ server dưới transaction và giữ snapshot. Giá/tổng là VND nguyên, tối đa 18 chữ số cho từng dòng và cả đơn; vượt giới hạn trả 400. Sale history hỗ trợ `type=Sale`; DB giữ tham chiếu dòng đơn/product, một movement cho mỗi dòng chuẩn hóa. Thiếu kho trả 409 và không lưu một phần đơn/kho/history.
+
+POST tạo đơn không có idempotency key và không tự retry. Nếu lỗi tại commit trả 503 `commit_outcome_unknown`, `orderId` và traceId để đối soát bằng GET trước khi gửi lại. Khi mất toàn bộ phản hồi mạng, không thể suy ra đơn chưa được lưu. GET dùng retained snapshots, không phụ thuộc Product/Customer còn active. Customer contact không được sao chép vào DTO đơn. Timestamps CompletedAt/CancelledAt hiện null; chưa có lifecycle APIs hoặc công thức doanh thu được duyệt.
+
 [OrderInventory.sln](OrderInventory.sln) gồm API → Application → Domain, Infrastructure triển khai các port của Application; Domain không phụ thuộc tầng khác. [DbMigrator](tools/OrderInventory.DbMigrator/Program.cs) là công cụ migration/seed, không phải tầng nghiệp vụ mới. [BootstrapSeedService](src/OrderInventory.Application/Seeding/BootstrapSeedService.cs) sở hữu transaction cho dữ liệu tài khoản và marker seed.
 
 ERD phản ánh schema hiện có. Mapping thuộc [DbContext](src/OrderInventory.Infrastructure/Persistence/OrderInventoryDbContext.cs) và [configurations](src/OrderInventory.Infrastructure/Persistence/Configurations); lịch sử schema tại [migrations](src/OrderInventory.Infrastructure/Persistence/Migrations).
@@ -106,6 +112,32 @@ erDiagram
     UserAccounts ||--o{ InventoryMovements : performs
     Customers ||--o{ CustomerAuditEntries : records
     UserAccounts ||--o{ CustomerAuditEntries : performs
+    Customers ||--o{ Orders : places
+    UserAccounts ||--o{ Orders : creates
+    Orders ||--|{ OrderLines : contains
+    Products ||--o{ OrderLines : referencedBy
+    OrderLines |o--o| InventoryMovements : saleSource
+    Orders {
+        int Id PK
+        int CustomerId FK
+        int CreatedBy FK
+        datetimeoffset CreatedAt
+        int Status "Pending only"
+        decimal Total "whole VND"
+        datetimeoffset CompletedAt "nullable"
+        datetimeoffset CancelledAt "nullable"
+        rowversion RowVersion
+    }
+    OrderLines {
+        int Id PK
+        int OrderId FK
+        int ProductId FK
+        int Quantity
+        nvarchar SkuSnapshot
+        nvarchar NameSnapshot
+        decimal UnitPriceSnapshot
+        decimal LineTotal
+    }
     Customers {
         int Id PK
         nvarchar Name
@@ -145,6 +177,7 @@ erDiagram
     }
     InventoryMovements {
         bigint Id PK
+        int OrderLineId FK "nullable, unique sale source with matching ProductId"
         int ProductId FK
         int ActorId FK
         int Delta
