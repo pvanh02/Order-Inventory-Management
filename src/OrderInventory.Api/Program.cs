@@ -80,6 +80,7 @@ try
         options.OperationFilter<AnonymousOperationFilter>();
         options.SchemaFilter<CatalogSchemaFilter>();
         options.SchemaFilter<CustomerSchemaFilter>();
+        options.SchemaFilter<OrderSchemaFilter>();
     });
 
     var app = builder.Build();
