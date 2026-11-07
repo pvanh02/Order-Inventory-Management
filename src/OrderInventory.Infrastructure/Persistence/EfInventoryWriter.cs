@@ -14,7 +14,7 @@ public sealed class EfInventoryWriter(OrderInventoryDbContext context, ICatalogD
     {
         var transaction = context.Database.CurrentTransaction ?? throw new InvalidOperationException("Stock writes require the owner's transaction.");
         // Validate before executing SQL, including when called from a seed/workflow core.
-        _ = InventoryMovement.Create(change.ProductId, change.Delta, 0, change.Type, change.ActorId, change.Reason, change.OccurredAt);
+        _ = InventoryMovement.Create(change.ProductId, change.Delta, 0, change.Type, change.ActorId, change.Reason, change.OccurredAt, change.OrderLineId);
         var product = await catalog.FindProductAsync(change.ProductId, true, cancellationToken);
         if (product is null || product.IsDeleted) throw new NotFoundException("The product was not found.");
 
@@ -37,7 +37,7 @@ public sealed class EfInventoryWriter(OrderInventoryDbContext context, ICatalogD
                 ? new ConflictException("insufficient_stock", "The stock is insufficient for this change.")
                 : new ConflictException("stock_overflow", "The stock would exceed the supported quantity limit.");
         }
-        var movement = InventoryMovement.Create(change.ProductId, change.Delta, (int)updated, change.Type, change.ActorId, change.Reason, change.OccurredAt);
+        var movement = InventoryMovement.Create(change.ProductId, change.Delta, (int)updated, change.Type, change.ActorId, change.Reason, change.OccurredAt, change.OrderLineId);
         context.InventoryMovements.Add(movement);
         return movement;
     }

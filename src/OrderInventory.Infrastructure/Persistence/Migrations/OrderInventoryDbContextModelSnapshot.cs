@@ -285,6 +285,9 @@ namespace OrderInventory.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("OccurredAt")
                         .HasColumnType("datetimeoffset");
 
+                    b.Property<int?>("OrderLineId")
+                        .HasColumnType("int");
+
                     b.Property<int>("ProductId")
                         .HasColumnType("int");
 
@@ -301,6 +304,12 @@ namespace OrderInventory.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("OccurredAt");
 
+                    b.HasIndex("OrderLineId")
+                        .IsUnique()
+                        .HasFilter("[OrderLineId] IS NOT NULL");
+
+                    b.HasIndex("OrderLineId", "ProductId");
+
                     b.HasIndex("ProductId", "Id");
 
                     b.ToTable("InventoryMovements", null, t =>
@@ -309,7 +318,109 @@ namespace OrderInventory.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("CK_InventoryMovements_Delta", "[Delta] <> 0 AND [Delta] >= -2147483647");
 
-                            t.HasCheckConstraint("CK_InventoryMovements_Type", "([Type] = 1 AND [Delta] > 0) OR ([Type] = 2 AND LEN(LTRIM(RTRIM([Reason]))) > 0 AND [Reason] IS NOT NULL)");
+                            t.HasCheckConstraint("CK_InventoryMovements_Type", "([Type] = 1 AND [Delta] > 0 AND [OrderLineId] IS NULL) OR ([Type] = 2 AND LEN(LTRIM(RTRIM([Reason]))) > 0 AND [Reason] IS NOT NULL AND [OrderLineId] IS NULL) OR ([Type] = 3 AND [Delta] < 0 AND [OrderLineId] IS NOT NULL)");
+                        });
+                });
+
+            modelBuilder.Entity("OrderInventory.Domain.Orders.Order", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset?>("CancelledAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("CreatedBy")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CustomerId")
+                        .HasColumnType("int");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Total")
+                        .HasPrecision(18)
+                        .HasColumnType("decimal(18,0)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedBy");
+
+                    b.HasIndex("CustomerId");
+
+                    b.HasIndex("CreatedAt", "Id");
+
+                    b.ToTable("Orders", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Orders_State", "[Status] = 1 AND [CompletedAt] IS NULL AND [CancelledAt] IS NULL");
+
+                            t.HasCheckConstraint("CK_Orders_Total", "[Total] > 0");
+                        });
+                });
+
+            modelBuilder.Entity("OrderInventory.Domain.Orders.OrderLine", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("LineTotal")
+                        .HasPrecision(18)
+                        .HasColumnType("decimal(18,0)");
+
+                    b.Property<string>("NameSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("OrderId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SkuSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<decimal>("UnitPriceSnapshot")
+                        .HasPrecision(18)
+                        .HasColumnType("decimal(18,0)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("OrderId", "ProductId")
+                        .IsUnique();
+
+                    b.ToTable("OrderLines", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_OrderLines_Amounts", "[UnitPriceSnapshot] > 0 AND [LineTotal] > 0 AND CONVERT(decimal(38,0), [LineTotal]) = CONVERT(decimal(38,0), [UnitPriceSnapshot]) * [Quantity]");
+
+                            t.HasCheckConstraint("CK_OrderLines_Quantity", "[Quantity] > 0");
                         });
                 });
 
@@ -388,6 +499,47 @@ namespace OrderInventory.Infrastructure.Persistence.Migrations
                         .HasForeignKey("ProductId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("OrderInventory.Domain.Orders.OrderLine", null)
+                        .WithMany()
+                        .HasForeignKey("OrderLineId", "ProductId")
+                        .HasPrincipalKey("Id", "ProductId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("OrderInventory.Domain.Orders.Order", b =>
+                {
+                    b.HasOne("OrderInventory.Domain.Identity.UserAccount", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("OrderInventory.Domain.Customers.Customer", null)
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("OrderInventory.Domain.Orders.OrderLine", b =>
+                {
+                    b.HasOne("OrderInventory.Domain.Orders.Order", null)
+                        .WithMany("Lines")
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("OrderInventory.Domain.Catalog.Product", null)
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("OrderInventory.Domain.Orders.Order", b =>
+                {
+                    b.Navigation("Lines");
                 });
 #pragma warning restore 612, 618
         }

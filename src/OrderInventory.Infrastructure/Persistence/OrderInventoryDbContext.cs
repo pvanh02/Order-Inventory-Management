@@ -3,6 +3,7 @@ using OrderInventory.Domain.Identity;
 using OrderInventory.Domain.Catalog;
 using OrderInventory.Domain.Inventory;
 using OrderInventory.Domain.Customers;
+using OrderInventory.Domain.Orders;
 
 namespace OrderInventory.Infrastructure.Persistence;
 
@@ -16,6 +17,8 @@ public sealed class OrderInventoryDbContext(DbContextOptions<OrderInventoryDbCon
     public DbSet<InventoryMovement> InventoryMovements => Set<InventoryMovement>();
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<CustomerAuditEntry> CustomerAuditEntries => Set<CustomerAuditEntry>();
+    public DbSet<Order> Orders => Set<Order>();
+    public DbSet<OrderLine> OrderLines => Set<OrderLine>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
