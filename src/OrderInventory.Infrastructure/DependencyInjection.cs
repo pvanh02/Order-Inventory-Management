@@ -45,6 +45,7 @@ public static class DependencyInjection
         services.AddScoped<CustomerService>();
         services.AddScoped<IOrderData, EfOrderData>();
         services.AddScoped<OrderService>();
+        services.AddScoped<OrderSeedService>();
         return services;
     }
 }

@@ -20,6 +20,7 @@ try
     await context.Database.MigrateAsync();
     await scope.ServiceProvider.GetRequiredService<BootstrapSeeder>().SeedAsync();
     await scope.ServiceProvider.GetRequiredService<CatalogSeedService>().SeedAsync();
+    await scope.ServiceProvider.GetRequiredService<OrderSeedService>().SeedAsync();
     Console.WriteLine("Database migration and bootstrap completed.");
     return 0;
 }
