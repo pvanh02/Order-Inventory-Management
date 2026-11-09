@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OrderInventory.Api.Security;
 using OrderInventory.Application.Orders;
+using OrderInventory.Application.Common;
 
 namespace OrderInventory.Api.Controllers;
 
@@ -17,6 +18,11 @@ namespace OrderInventory.Api.Controllers;
 [ProducesResponseType<ProblemDetails>(503)]
 public sealed class OrdersController(OrderService orders) : ControllerBase
 {
+    [HttpGet]
+    [ProducesResponseType<PagedResult<OrderSummaryDto>>(200)]
+    public async Task<ActionResult<PagedResult<OrderSummaryDto>>> List([FromQuery] OrderListQuery query, CancellationToken cancellationToken) =>
+        Ok(await orders.ListAsync(CurrentActor.Get(User), query, cancellationToken));
+
     [HttpGet("{id:int}")]
     [ProducesResponseType<OrderDto>(200)]
     public async Task<ActionResult<OrderDto>> Get(int id, CancellationToken cancellationToken) =>

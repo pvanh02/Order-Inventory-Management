@@ -1,4 +1,5 @@
 using OrderInventory.Application.Orders;
+using OrderInventory.Application.Common;
 using OrderInventory.Domain.Orders;
 
 namespace OrderInventory.Application.Abstractions;
@@ -9,4 +10,5 @@ public interface IOrderData
     void Add(Order order);
     Task SaveChangesAsync(CancellationToken cancellationToken);
     Task<OrderDto?> ReadAsync(int id, CancellationToken cancellationToken);
+    Task<PagedResult<OrderSummaryDto>> ListAsync(OrderListQuery query, CancellationToken cancellationToken);
 }

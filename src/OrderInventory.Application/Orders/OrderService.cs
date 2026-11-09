@@ -8,6 +8,12 @@ namespace OrderInventory.Application.Orders;
 
 public sealed class OrderService(IOrderData data, ICustomerData customers, ICatalogData catalog, IInventoryWriter writer, TimeProvider clock)
 {
+    public Task<PagedResult<OrderSummaryDto>> ListAsync(Actor actor, OrderListQuery query, CancellationToken cancellationToken)
+    {
+        Authorize(actor);
+        return data.ListAsync(OrderQueryValidation.Normalize(query), cancellationToken);
+    }
+
     public async Task<OrderDto> GetAsync(Actor actor, int id, CancellationToken cancellationToken)
     {
         Authorize(actor);
@@ -19,7 +25,23 @@ public sealed class OrderService(IOrderData data, ICustomerData customers, ICata
         Authorize(actor);
         var normalized = OrderPricingPolicy.Normalize(request);
         await using var transaction = await data.BeginTransactionAsync(cancellationToken);
-        var customer = await customers.FindAsync(request.CustomerId, true, cancellationToken);
+        var result = await CreateCoreAsync(actor, request.CustomerId, normalized, cancellationToken);
+        try { await transaction.CommitAsync(cancellationToken); }
+        catch (ConflictException) { throw; }
+        catch (Exception) { throw new CommitOutcomeUnknownException(result.Id); }
+        return result;
+    }
+
+    // Seed owner supplies the active transaction; adapters reject lock/write calls without one.
+    internal Task<OrderDto> CreateWithinTransactionAsync(Actor actor, CreateOrderRequest request, CancellationToken cancellationToken)
+    {
+        Authorize(actor);
+        return CreateCoreAsync(actor, request.CustomerId, OrderPricingPolicy.Normalize(request), cancellationToken);
+    }
+
+    private async Task<OrderDto> CreateCoreAsync(Actor actor, int customerId, IReadOnlyList<OrderLineRequest> normalized, CancellationToken cancellationToken)
+    {
+        var customer = await customers.FindAsync(customerId, true, cancellationToken);
         if (customer is null || customer.IsDeleted) throw new NotFoundException("The customer was not found.");
         List<OrderLine> lines = [];
         foreach (var line in normalized)
@@ -38,9 +60,6 @@ public sealed class OrderService(IOrderData data, ICustomerData customers, ICata
             await writer.ApplyAsync(new(line.ProductId, -line.Quantity, MovementType.Sale, actor.UserId, null, order.CreatedAt, line.Id), cancellationToken);
         await data.SaveChangesAsync(cancellationToken);
         var result = await data.ReadAsync(order.Id, cancellationToken) ?? throw new InvalidOperationException("The saved order is missing.");
-        try { await transaction.CommitAsync(cancellationToken); }
-        catch (ConflictException) { throw; }
-        catch (Exception) { throw new CommitOutcomeUnknownException(order.Id); }
         return result;
     }
 
