@@ -1,6 +1,6 @@
 # Order & Inventory API
 
-REST API ASP.NET Core cho một cửa hàng. Hiện có nền tảng bốn tầng, đăng nhập JWT, quản trị tài khoản, CRUD danh mục/sản phẩm/khách hàng, lịch sử thay đổi khách hàng, sổ tồn kho và tạo/đọc chi tiết đơn hàng nguyên tử. Danh sách đơn, hoàn tất/hủy và báo cáo còn thuộc các bước tiếp theo.
+REST API ASP.NET Core cho một cửa hàng. Hiện có nền tảng bốn tầng, đăng nhập JWT, quản trị tài khoản, CRUD danh mục/sản phẩm/khách hàng, lịch sử thay đổi khách hàng, sổ tồn kho, tạo đơn nguyên tử và tra cứu đơn có phân trang/lọc/sắp xếp. Hoàn tất/hủy và báo cáo còn thuộc các bước tiếp theo.
 
 - [COMET System Design](docs/system-design.md): requirement/UC/BR, quyết định Identity đã chốt và thiết kế Proposed/TBD còn lại.
 
@@ -83,6 +83,7 @@ Contract DTO/validation thuộc [Application Identity](src/OrderInventory.Applic
 | GET | `/api/v1/customers/{id}/history` | UC-CUS06 | Admin; 200, đọc được sau xóa mềm |
 | POST | `/api/v1/orders` | UC-ORD01 | Admin/Staff; 201 + Location, Pending; bắt buộc Customer chưa xóa |
 | GET | `/api/v1/orders/{id}` | UC-ORD03 | Admin/Staff xem mọi đơn; 200 OrderDto với snapshots |
+| GET | `/api/v1/orders` | UC-ORD02 | Admin/Staff xem mọi đơn; 200 PagedResult<OrderSummaryDto> |
 
 Access JWT có hạn 30 phút, không refresh token. Đổi role hoặc active state thực sự làm token cũ hết hiệu lực ở request kế tiếp; không được hạ quyền hay vô hiệu hóa Admin active cuối cùng. Staff gọi user-management trả 403. Hợp đồng lỗi dùng ProblemDetails với `errorCode`, `traceId`, và `errors` cho validation; xem [ProblemResponses](src/OrderInventory.Api/Errors/ProblemResponses.cs) và các kiểm tra HTTP.
 
@@ -99,6 +100,10 @@ Ví dụ tìm khách: `/api/v1/customers?search=An&sort=name&page=1&pageSize=20`
 Đơn hàng dùng [OrderService](src/OrderInventory.Application/Orders/OrderService.cs), [contracts](src/OrderInventory.Application/Orders/Contracts.cs) và [OrderPricingPolicy](src/OrderInventory.Application/Orders/OrderPricingPolicy.cs); HTTP tại [OrdersController](src/OrderInventory.Api/Controllers/OrdersController.cs). Tối đa 100 dòng đầu vào; gộp productId trùng, quantity sau gộp tối đa int.MaxValue. SKU/tên/giá lấy từ server dưới transaction và giữ snapshot. Giá/tổng là VND nguyên, tối đa 18 chữ số cho từng dòng và cả đơn; vượt giới hạn trả 400. Sale history hỗ trợ `type=Sale`; DB giữ tham chiếu dòng đơn/product, một movement cho mỗi dòng chuẩn hóa. Thiếu kho trả 409 và không lưu một phần đơn/kho/history.
 
 POST tạo đơn không có idempotency key và không tự retry. Nếu lỗi tại commit trả 503 `commit_outcome_unknown`, `orderId` và traceId để đối soát bằng GET trước khi gửi lại. Khi mất toàn bộ phản hồi mạng, không thể suy ra đơn chưa được lưu. GET dùng retained snapshots, không phụ thuộc Product/Customer còn active. Customer contact không được sao chép vào DTO đơn. Timestamps CompletedAt/CancelledAt hiện null; chưa có lifecycle APIs hoặc công thức doanh thu được duyệt.
+
+List/query contract thuộc [OrderQueryValidation](src/OrderInventory.Application/Orders/OrderQueryValidation.cs), [DTO](src/OrderInventory.Application/Orders/Contracts.cs), [SQL adapter](src/OrderInventory.Infrastructure/Persistence/EfOrderData.cs) và [OpenAPI metadata](src/OrderInventory.Api/OpenApi/OrderListOperationFilter.cs). Ví dụ `/api/v1/orders?search=DEMO-ORDER-ITEM&sort=-createdAt&page=1&pageSize=20`. List trả summary + lineCount, dùng detail để đọc các dòng snapshot; không trả contact Customer. Search tìm SKU/tên snapshot nên vẫn tìm được đơn sau khi Product đổi tên hoặc bị xóa mềm.
+
+Page mặc định1, size20/max100; sort `id`, `createdAt`, `total` và chiều ngược với `-`, default `-createdAt`, ID tăng dần để phân xử tie. Lọc `customerId`, `createdBy`, `productId`, `status=Pending`, `from`/`to` theo CreatedAt UTC `[from,to)`, `minTotal`/`maxTotal` VND nguyên. Các mặc định/bounds là lựa chọn kỹ thuật cho API v1; không mở thêm trạng thái lifecycle. Count/filter/sort/page đều thực hiện trong SQL, không tải toàn bộ đơn/dòng vào memory để phân trang.
 
 [OrderInventory.sln](OrderInventory.sln) gồm API → Application → Domain, Infrastructure triển khai các port của Application; Domain không phụ thuộc tầng khác. [DbMigrator](tools/OrderInventory.DbMigrator/Program.cs) là công cụ migration/seed, không phải tầng nghiệp vụ mới. [BootstrapSeedService](src/OrderInventory.Application/Seeding/BootstrapSeedService.cs) sở hữu transaction cho dữ liệu tài khoản và marker seed.
 
@@ -206,6 +211,8 @@ erDiagram
 ```
 
 [CatalogSeedService](src/OrderInventory.Application/Seeding/CatalogSeedService.cs) tạo demo category, `DEMO-COFFEE` và `DEMO-TEA` với receipt/history ban đầu dưới cùng transaction với seed marker. Migration/seed chạy lại giữ nguyên dữ liệu đã sửa; không ghi đè tồn hoặc thông tin đăng nhập.
+
+[OrderSeedService](src/OrderInventory.Application/Seeding/OrderSeedService.cs) tạo bộ demo riêng `DEMO-ORDER-ITEM` giá10.000 VND: receipt5, một đơn Pending quantity2/tổng20.000, tồn còn3. Customer/category riêng; không trừ/reset tồn coffee/tea hoặc dữ liệu cũ. Seed dùng chung transaction core của OrderService; Customer/audit/catalog/opening receipt/order/Sale và marker `v1/order-demo` cùng commit/rollback. Chạy lại không tạo thêm đơn hoặc reset chỉnh sửa. Nếu SKU đã được dùng nhưng chưa có marker, seed từ chối thay vì nhận nhầm dữ liệu người dùng. Đây là demo tạo đơn, chưa phải fixture doanh thu cho báo cáo.
 
 ## Kiểm tra
 
