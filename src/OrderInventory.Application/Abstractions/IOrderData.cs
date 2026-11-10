@@ -11,4 +11,6 @@ public interface IOrderData
     Task SaveChangesAsync(CancellationToken cancellationToken);
     Task<OrderDto?> ReadAsync(int id, CancellationToken cancellationToken);
     Task<PagedResult<OrderSummaryDto>> ListAsync(OrderListQuery query, CancellationToken cancellationToken);
+    Task<OrderLifecycleState?> LockLifecycleAsync(int id, CancellationToken cancellationToken);
+    Task<bool> TryCompleteAsync(int id, int actorId, DateTimeOffset completedAt, CancellationToken cancellationToken);
 }

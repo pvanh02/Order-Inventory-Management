@@ -32,6 +32,22 @@ public sealed class OrderService(IOrderData data, ICustomerData customers, ICata
         return result;
     }
 
+    public async Task<OrderDto> CompleteAsync(Actor actor, int id, CancellationToken cancellationToken)
+    {
+        Authorize(actor);
+        await using var transaction = await data.BeginTransactionAsync(cancellationToken);
+        var state = await data.LockLifecycleAsync(id, cancellationToken) ?? throw new NotFoundException("The order was not found.");
+        if (!OrderLifecyclePolicy.ShouldComplete(actor, state))
+            return await data.ReadAsync(id, cancellationToken) ?? throw new InvalidOperationException("The locked order is missing.");
+        if (!await data.TryCompleteAsync(id, actor.UserId, clock.GetUtcNow(), cancellationToken))
+            throw new ConflictException("invalid_order_state", "The order state changed before completion.");
+        var result = await data.ReadAsync(id, cancellationToken) ?? throw new InvalidOperationException("The completed order is missing.");
+        try { await transaction.CommitAsync(cancellationToken); }
+        catch (ConflictException) { throw; }
+        catch (Exception) { throw new CommitOutcomeUnknownException(id); }
+        return result;
+    }
+
     // Seed owner supplies the active transaction; adapters reject lock/write calls without one.
     internal Task<OrderDto> CreateWithinTransactionAsync(Actor actor, CreateOrderRequest request, CancellationToken cancellationToken)
     {

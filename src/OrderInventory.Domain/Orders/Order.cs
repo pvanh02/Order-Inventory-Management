@@ -2,7 +2,7 @@ using OrderInventory.Domain.Catalog;
 
 namespace OrderInventory.Domain.Orders;
 
-public enum OrderStatus { Pending = 1 }
+public enum OrderStatus { Pending = 1, Completed = 2, Cancelled = 3 }
 
 public sealed class Order
 {
@@ -12,6 +12,7 @@ public sealed class Order
     public int CreatedBy { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset? CompletedAt { get; private set; }
+    public int? CompletedBy { get; private set; }
     public DateTimeOffset? CancelledAt { get; private set; }
     public OrderStatus Status { get; private set; }
     public decimal Total { get; private set; }

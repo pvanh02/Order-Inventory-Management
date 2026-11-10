@@ -15,9 +15,8 @@ public static class OrderQueryValidation
         var status = query.Status?.Trim();
         if (status is not null)
         {
-            if (!string.Equals(status, "Pending", StringComparison.OrdinalIgnoreCase))
-                throw OrderPricingPolicy.Invalid("status", "The currently supported status is Pending.");
-            status = "Pending";
+            status = new[] { "Pending", "Completed" }.FirstOrDefault(value => string.Equals(value, status, StringComparison.OrdinalIgnoreCase))
+                ?? throw OrderPricingPolicy.Invalid("status", "The currently supported statuses are Pending and Completed.");
         }
         var search = query.Search?.Trim();
         if (search?.Length > 200) throw OrderPricingPolicy.Invalid("search", "Search must not exceed 200 characters.");
