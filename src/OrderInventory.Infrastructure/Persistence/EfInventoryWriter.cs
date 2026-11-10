@@ -16,7 +16,7 @@ public sealed class EfInventoryWriter(OrderInventoryDbContext context, ICatalogD
         // Validate before executing SQL, including when called from a seed/workflow core.
         _ = InventoryMovement.Create(change.ProductId, change.Delta, 0, change.Type, change.ActorId, change.Reason, change.OccurredAt, change.OrderLineId);
         var product = await catalog.FindProductAsync(change.ProductId, true, cancellationToken);
-        if (product is null || product.IsDeleted) throw new NotFoundException("The product was not found.");
+        if (product is null || product.IsDeleted && change.Type != MovementType.CancellationReturn) throw new NotFoundException("The product was not found.");
 
         await using var command = context.Database.GetDbConnection().CreateCommand();
         command.Transaction = transaction.GetDbTransaction();

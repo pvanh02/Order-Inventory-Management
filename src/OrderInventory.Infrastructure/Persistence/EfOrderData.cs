@@ -26,7 +26,8 @@ public sealed class EfOrderData(OrderInventoryDbContext context) : IOrderData
         var order = await context.Orders.AsNoTracking().Include(item => item.Lines).SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
         return order is null ? null : new(order.Id, order.CustomerId, order.CreatedBy, order.CreatedAt, order.Status.ToString(), order.Total,
             order.CompletedAt, order.CancelledAt, order.Lines.OrderBy(line => line.ProductId).Select(line => new OrderLineDto(line.Id, line.ProductId,
-                line.Quantity, line.SkuSnapshot, line.NameSnapshot, line.UnitPriceSnapshot, line.LineTotal)).ToArray()) { CompletedBy = order.CompletedBy };
+                line.Quantity, line.SkuSnapshot, line.NameSnapshot, line.UnitPriceSnapshot, line.LineTotal)).ToArray())
+            { CompletedBy = order.CompletedBy, CancelledBy = order.CancelledBy, CancellationReason = order.CancellationReason };
     }
     public async Task<OrderLifecycleState?> LockLifecycleAsync(int id, CancellationToken cancellationToken)
     {
@@ -41,6 +42,13 @@ public sealed class EfOrderData(OrderInventoryDbContext context) : IOrderData
         RequireTransaction();
         var affected = await PersistenceErrors.ExecuteAsync(() => context.Database.ExecuteSqlInterpolatedAsync(
             $"UPDATE [Orders] SET [Status] = 2, [CompletedAt] = {completedAt}, [CompletedBy] = {actorId} WHERE [Id] = {id} AND [Status] = 1", cancellationToken));
+        return affected == 1;
+    }
+    public async Task<bool> TryCancelAsync(int id, int actorId, DateTimeOffset cancelledAt, string? reason, CancellationToken cancellationToken)
+    {
+        RequireTransaction();
+        var affected = await PersistenceErrors.ExecuteAsync(() => context.Database.ExecuteSqlInterpolatedAsync(
+            $"UPDATE [Orders] SET [Status] = 3, [CancelledAt] = {cancelledAt}, [CancelledBy] = {actorId}, [CancellationReason] = {reason} WHERE [Id] = {id} AND [Status] = 1", cancellationToken));
         return affected == 1;
     }
     public async Task<PagedResult<OrderSummaryDto>> ListAsync(OrderListQuery query, CancellationToken cancellationToken)

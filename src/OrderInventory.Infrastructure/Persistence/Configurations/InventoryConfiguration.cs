@@ -25,7 +25,7 @@ internal sealed class MovementConfiguration : IEntityTypeConfiguration<Inventory
         {
             table.HasCheckConstraint("CK_InventoryMovements_Delta", "[Delta] <> 0 AND [Delta] >= -2147483647");
             table.HasCheckConstraint("CK_InventoryMovements_Balance", "[BalanceAfter] >= 0");
-            table.HasCheckConstraint("CK_InventoryMovements_Type", "([Type] = 1 AND [Delta] > 0 AND [OrderLineId] IS NULL) OR ([Type] = 2 AND LEN(LTRIM(RTRIM([Reason]))) > 0 AND [Reason] IS NOT NULL AND [OrderLineId] IS NULL) OR ([Type] = 3 AND [Delta] < 0 AND [OrderLineId] IS NOT NULL)");
+            table.HasCheckConstraint("CK_InventoryMovements_Type", "([Type] = 1 AND [Delta] > 0 AND [OrderLineId] IS NULL) OR ([Type] = 2 AND LEN(LTRIM(RTRIM([Reason]))) > 0 AND [Reason] IS NOT NULL AND [OrderLineId] IS NULL) OR ([Type] = 3 AND [Delta] < 0 AND [OrderLineId] IS NOT NULL) OR ([Type] = 4 AND [Delta] > 0 AND [OrderLineId] IS NOT NULL)");
         });
         entity.HasKey(item => item.Id);
         entity.Property(item => item.Reason).HasMaxLength(512);
@@ -36,6 +36,6 @@ internal sealed class MovementConfiguration : IEntityTypeConfiguration<Inventory
         entity.HasIndex(item => item.ActorId);
         entity.HasOne<OrderLine>().WithMany().HasForeignKey(item => new { item.OrderLineId, item.ProductId })
             .HasPrincipalKey(item => new { item.Id, item.ProductId }).OnDelete(DeleteBehavior.Restrict);
-        entity.HasIndex(item => item.OrderLineId).IsUnique().HasFilter("[OrderLineId] IS NOT NULL");
+        entity.HasIndex(item => new { item.OrderLineId, item.Type }).IsUnique().HasFilter("[OrderLineId] IS NOT NULL");
     }
 }

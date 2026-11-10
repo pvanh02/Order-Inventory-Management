@@ -70,6 +70,6 @@ public sealed class EfInventoryData(OrderInventoryDbContext context) : IInventor
         from movement in rows
         join product in context.Products on movement.ProductId equals product.Id
         select new MovementDto(movement.Id, product.Id, product.Sku, product.Name, product.IsDeleted,
-            movement.Delta, movement.BalanceAfter, movement.Type == MovementType.Receipt ? "Receipt" : movement.Type == MovementType.Adjustment ? "Adjustment" : "Sale",
+            movement.Delta, movement.BalanceAfter, movement.Type == MovementType.Receipt ? "Receipt" : movement.Type == MovementType.Adjustment ? "Adjustment" : movement.Type == MovementType.Sale ? "Sale" : "CancellationReturn",
             movement.ActorId, movement.Reason, movement.OccurredAt);
 }

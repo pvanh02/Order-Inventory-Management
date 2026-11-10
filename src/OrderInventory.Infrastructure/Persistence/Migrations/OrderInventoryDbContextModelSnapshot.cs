@@ -304,11 +304,11 @@ namespace OrderInventory.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("OccurredAt");
 
-                    b.HasIndex("OrderLineId")
+                    b.HasIndex("OrderLineId", "ProductId");
+
+                    b.HasIndex("OrderLineId", "Type")
                         .IsUnique()
                         .HasFilter("[OrderLineId] IS NOT NULL");
-
-                    b.HasIndex("OrderLineId", "ProductId");
 
                     b.HasIndex("ProductId", "Id");
 
@@ -318,7 +318,7 @@ namespace OrderInventory.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("CK_InventoryMovements_Delta", "[Delta] <> 0 AND [Delta] >= -2147483647");
 
-                            t.HasCheckConstraint("CK_InventoryMovements_Type", "([Type] = 1 AND [Delta] > 0 AND [OrderLineId] IS NULL) OR ([Type] = 2 AND LEN(LTRIM(RTRIM([Reason]))) > 0 AND [Reason] IS NOT NULL AND [OrderLineId] IS NULL) OR ([Type] = 3 AND [Delta] < 0 AND [OrderLineId] IS NOT NULL)");
+                            t.HasCheckConstraint("CK_InventoryMovements_Type", "([Type] = 1 AND [Delta] > 0 AND [OrderLineId] IS NULL) OR ([Type] = 2 AND LEN(LTRIM(RTRIM([Reason]))) > 0 AND [Reason] IS NOT NULL AND [OrderLineId] IS NULL) OR ([Type] = 3 AND [Delta] < 0 AND [OrderLineId] IS NOT NULL) OR ([Type] = 4 AND [Delta] > 0 AND [OrderLineId] IS NOT NULL)");
                         });
                 });
 
@@ -330,8 +330,15 @@ namespace OrderInventory.Infrastructure.Persistence.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("CancellationReason")
+                        .HasMaxLength(512)
+                        .HasColumnType("nvarchar(512)");
+
                     b.Property<DateTimeOffset?>("CancelledAt")
                         .HasColumnType("datetimeoffset");
+
+                    b.Property<int?>("CancelledBy")
+                        .HasColumnType("int");
 
                     b.Property<DateTimeOffset?>("CompletedAt")
                         .HasColumnType("datetimeoffset");
@@ -363,6 +370,8 @@ namespace OrderInventory.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CancelledBy");
+
                     b.HasIndex("CompletedBy");
 
                     b.HasIndex("CreatedBy");
@@ -373,7 +382,7 @@ namespace OrderInventory.Infrastructure.Persistence.Migrations
 
                     b.ToTable("Orders", null, t =>
                         {
-                            t.HasCheckConstraint("CK_Orders_State", "([Status] = 1 AND [CompletedAt] IS NULL AND [CompletedBy] IS NULL AND [CancelledAt] IS NULL) OR ([Status] = 2 AND [CompletedAt] IS NOT NULL AND [CompletedBy] IS NOT NULL AND [CancelledAt] IS NULL)");
+                            t.HasCheckConstraint("CK_Orders_State", "([Status] = 1 AND [CompletedAt] IS NULL AND [CompletedBy] IS NULL AND [CancelledAt] IS NULL AND [CancelledBy] IS NULL AND [CancellationReason] IS NULL) OR ([Status] = 2 AND [CompletedAt] IS NOT NULL AND [CompletedBy] IS NOT NULL AND [CancelledAt] IS NULL AND [CancelledBy] IS NULL AND [CancellationReason] IS NULL) OR ([Status] = 3 AND [CancelledAt] IS NOT NULL AND [CancelledBy] IS NOT NULL AND [CompletedAt] IS NULL AND [CompletedBy] IS NULL)");
 
                             t.HasCheckConstraint("CK_Orders_Total", "[Total] > 0");
                         });
@@ -514,6 +523,11 @@ namespace OrderInventory.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("OrderInventory.Domain.Orders.Order", b =>
                 {
+                    b.HasOne("OrderInventory.Domain.Identity.UserAccount", null)
+                        .WithMany()
+                        .HasForeignKey("CancelledBy")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("OrderInventory.Domain.Identity.UserAccount", null)
                         .WithMany()
                         .HasForeignKey("CompletedBy")
