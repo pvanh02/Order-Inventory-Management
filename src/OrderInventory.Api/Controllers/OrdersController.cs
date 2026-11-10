@@ -36,6 +36,11 @@ public sealed class OrdersController(OrderService orders) : ControllerBase
         return CreatedAtAction(nameof(Get), new { id = order.Id }, order);
     }
 
+    [HttpPost("{id:int}/cancel")]
+    [ProducesResponseType<OrderDto>(200)]
+    public async Task<ActionResult<OrderDto>> Cancel(int id, CancelOrderRequest request, CancellationToken cancellationToken) =>
+        Ok(await orders.CancelAsync(CurrentActor.Get(User), id, request, cancellationToken));
+
     [HttpPost("{id:int}/complete")]
     [ProducesResponseType<OrderDto>(200)]
     public async Task<ActionResult<OrderDto>> Complete(int id, CancellationToken cancellationToken) =>

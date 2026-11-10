@@ -9,6 +9,11 @@ public sealed class OrderSchemaFilter : ISchemaFilter
     public void Apply(IOpenApiSchema input, SchemaFilterContext context)
     {
         if (input is not OpenApiSchema schema || schema.Properties is null) return;
+        if (context.Type == typeof(CancelOrderRequest))
+        {
+            schema.Description = "Admin can cancel any Pending order; Staff only their own. Returns original line quantities once, including deleted products, in the cancellation transaction. Optional trimmed reason, maximum 512 characters. Repeat returns original audit/reason without mutation; Completed conflicts with 409. Unknown commit requires reconciliation before resubmission.";
+            if (schema.Properties["reason"] is OpenApiSchema reason) reason.MaxLength = 512;
+        }
         if (context.Type == typeof(CreateOrderRequest))
         {
             schema.Required ??= new HashSet<string>(StringComparer.Ordinal);

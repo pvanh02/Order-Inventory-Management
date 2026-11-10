@@ -9,7 +9,7 @@ public sealed class OrderListOperationFilter : IOperationFilter
     public void Apply(OpenApiOperation operation, OperationFilterContext context)
     {
         if (context.MethodInfo.DeclaringType != typeof(OrdersController) || context.MethodInfo.Name != nameof(OrdersController.List)) return;
-        operation.Description = "Admin and Staff can list all orders. Filters and count execute in SQL before paging. Search matches retained SKU/name snapshots, including soft-deleted products/customers. Time bounds are CreatedAt UTC [from,to). Money filters are whole VND; status supports Pending and Completed. Summaries exclude Customer contact data; use detail for line snapshots. Equal sort values use ascending order ID as a tie-breaker.";
+        operation.Description = "Admin and Staff can list all orders. Filters and count execute in SQL before paging. Search matches retained SKU/name snapshots, including soft-deleted products/customers. Time bounds are CreatedAt UTC [from,to). Money filters are whole VND; status supports Pending, Completed and Cancelled. Summaries exclude Customer contact data; use detail for line snapshots. Equal sort values use ascending order ID as a tie-breaker.";
         foreach (var parameter in operation.Parameters ?? [])
         {
             if (parameter.Schema is not OpenApiSchema schema) continue;
@@ -23,7 +23,7 @@ public sealed class OrderListOperationFilter : IOperationFilter
                 case "customerid": case "createdby": case "productid": schema.Minimum = "1"; break;
                 case "from": parameter.Description = "Inclusive CreatedAt instant; offsets normalized to UTC."; break;
                 case "to": parameter.Description = "Exclusive CreatedAt instant; must be after from."; break;
-                case "status": parameter.Description = "Pending or Completed (case-insensitive)."; break;
+                case "status": parameter.Description = "Pending, Completed or Cancelled (case-insensitive)."; break;
             }
         }
     }
