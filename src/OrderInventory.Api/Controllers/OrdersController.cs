@@ -35,4 +35,9 @@ public sealed class OrdersController(OrderService orders) : ControllerBase
         var order = await orders.CreateAsync(CurrentActor.Get(User), request, cancellationToken);
         return CreatedAtAction(nameof(Get), new { id = order.Id }, order);
     }
+
+    [HttpPost("{id:int}/complete")]
+    [ProducesResponseType<OrderDto>(200)]
+    public async Task<ActionResult<OrderDto>> Complete(int id, CancellationToken cancellationToken) =>
+        Ok(await orders.CompleteAsync(CurrentActor.Get(User), id, cancellationToken));
 }

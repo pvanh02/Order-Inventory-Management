@@ -82,6 +82,7 @@ try
         options.SchemaFilter<CustomerSchemaFilter>();
         options.SchemaFilter<OrderSchemaFilter>();
         options.OperationFilter<OrderListOperationFilter>();
+        options.OperationFilter<OrderCompletionOperationFilter>();
     });
 
     var app = builder.Build();
