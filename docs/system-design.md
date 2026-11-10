@@ -3,7 +3,7 @@
 | Metadata | Nội dung |
 |---|---|
 | Document type | Requirement & Design Specification, theo COMET (Collaborative Object Modeling and Architectural Design Method) |
-| Trạng thái | Identity, catalog, inventory và Customer CRUD/audit đã có source; Order create/list/detail và atomic demo seed đã có source; hoàn tất đơn đã có source; hủy/hoàn kho chưa triển khai, báo cáo còn Proposed/TBD. Kết quả nghiệm thu nằm trong report, không suy ra từ mô hình |
+| Trạng thái | Identity, catalog, inventory và Customer CRUD/audit đã có source; Order create/list/detail và atomic demo seed đã có source; hoàn tất/hủy đơn và hoàn kho đã có source, báo cáo còn Proposed/TBD. Kết quả nghiệm thu nằm trong report, không suy ra từ mô hình |
 | Đối tượng đọc | Người phát triển, người review và người đánh giá portfolio |
 | Nguồn yêu cầu | `brief.md` (local-only) và `AGENTS.md` (local-only) |
 | Mẫu trình bày | `report_template.md` (local-only), chỉ tham khảo bố cục và độ chi tiết |
@@ -19,7 +19,7 @@ Quy ước trạng thái áp dụng cho toàn bộ tài liệu:
 | **Proposed** | Phương án thiết kế để review, chưa phải quyết định đã được chấp thuận. |
 | **TBD** | Thiếu thông tin hoặc chưa chốt; phải giải quyết trước khi triển khai phần phụ thuộc. |
 
-Identity, catalog, inventory và Customer CRUD/audit có executable owners được dẫn bên dưới. Order create/list/detail, Customer bắt buộc và demo seed đã Implemented; lifecycle đã được user Confirmed; hoàn tất đơn có source, hủy/hoàn kho chưa triển khai. Reporting vẫn **Proposed/TBD**, kể cả khi không lặp nhãn ở từng tên class/DTO/route. Policy Customer được user xác nhận riêng: bộ trường, quyền CRUD/xóa mềm và lịch sử thay đổi chỉ Admin đọc, không chứa bản sao thông tin liên hệ. Policy doanh thu chưa được chốt từ quyết định Customer hoặc lifecycle. [README](../README.md) là điểm vào chạy local, ERD hiện có và API hiện có; report thực thi giữ riêng trên máy.
+Identity, catalog, inventory và Customer CRUD/audit có executable owners được dẫn bên dưới. Order create/list/detail, Customer bắt buộc và demo seed đã Implemented; lifecycle đã được user Confirmed; hoàn tất/hủy đơn và hoàn kho có source. Reporting vẫn **Proposed/TBD**, kể cả khi không lặp nhãn ở từng tên class/DTO/route. Policy Customer được user xác nhận riêng: bộ trường, quyền CRUD/xóa mềm và lịch sử thay đổi chỉ Admin đọc, không chứa bản sao thông tin liên hệ. Policy doanh thu chưa được chốt từ quyết định Customer hoặc lifecycle. [README](../README.md) là điểm vào chạy local, ERD hiện có và API hiện có; report thực thi giữ riêng trên máy.
 
 ## Table of Contents
 
@@ -49,7 +49,7 @@ Tài liệu áp dụng COMET theo chuỗi: xác định actor và use case → p
 | Catalog | CRUD danh mục/sản phẩm, SKU duy nhất, giá, xóa mềm | Confirmed: SKU trim/uppercase, immutable và giữ unique sau xóa; category còn product active hoặc product còn tồn không được xóa |
 | Inventory | Một kho; xem tồn, nhập kho, điều chỉnh, lịch sử mỗi thay đổi | Confirmed: số lượng nguyên, nhập > 0; Admin/Staff xem lịch sử; chỉ Admin điều chỉnh delta khác 0 kèm lý do |
 | Customers | CRUD và lịch sử thay đổi chỉ Admin đọc | Fields/quyền/soft-delete/audit Confirmed; Customer bắt buộc trên Order Confirmed |
-| Orders | Tạo đơn nhiều dòng, xem đơn, hủy theo trạng thái; transaction và trừ kho | Lifecycle/quyền/hoàn kho Confirmed; complete có source, cancel/hoàn kho chưa triển khai |
+| Orders | Tạo đơn nhiều dòng, xem đơn, hủy theo trạng thái; transaction và trừ kho | Lifecycle/quyền/hoàn kho Confirmed; complete/cancel/hoàn kho có source |
 | Reporting | Doanh thu theo ngày/tháng, top sản phẩm; chỉ Admin | Công thức, trạng thái được tính, mốc thời gian, tiêu chí xếp hạng |
 | Local delivery | Dockerfile, Docker Compose cho API + SQL Server, migration/seed tự động, Swagger, test, README | Manifest và bootstrap Identity đã có; startup đầy đủ và restart cần bằng chứng trong report |
 
@@ -125,23 +125,23 @@ Register giữ nguyên ID để truy vết. Các dòng đã đóng một phần 
 | ID | Quyết định còn thiếu | Proposed để review | Phần phụ thuộc |
 |---|---|---|---|
 | TBD-01 | **Selected cho stock writer** | ReadCommitted owner transaction, product update lock; conditional UPDATE + OUTPUT actual balance; movement cùng transaction, không commit/retry riêng | [EfInventoryWriter](../src/OrderInventory.Infrastructure/Persistence/EfInventoryWriter.cs); integration tạo đơn tranh tồn vẫn thuộc Phase 04 |
-| TBD-02 | **Closed — user Confirmed lifecycle ownership** | Admin mọi đơn; Staff chỉ complete/cancel đơn mình tạo. Quyền đọc mọi đơn giữ nguyên | UC-ORD05 có source tại OrderLifecyclePolicy; UC-ORD04 chờ triển khai |
-| TBD-03 | **Closed — user Confirmed lifecycle** | Pending → Completed hoặc Cancelled, cả hai terminal; complete không đổi kho; cancel Pending hoàn đúng lượng một lần, kể cả product đã xóa mềm; không hủy Completed | Complete có source; cancel/hoàn kho chưa triển khai; revenue vẫn TBD-06 |
+| TBD-02 | **Closed — user Confirmed lifecycle ownership** | Admin mọi đơn; Staff chỉ complete/cancel đơn mình tạo. Quyền đọc mọi đơn giữ nguyên | UC-ORD04/05 có source tại OrderLifecyclePolicy |
+| TBD-03 | **Closed — user Confirmed lifecycle** | Pending → Completed hoặc Cancelled, cả hai terminal; complete không đổi kho; cancel Pending hoàn đúng lượng một lần, kể cả product đã xóa mềm; không hủy Completed | Complete/cancel/hoàn kho có source; revenue vẫn TBD-06 |
 | TBD-04 | **Catalog/Customer Confirmed** | Catalog policy giữ nguyên. Customer xóa mềm bởi Admin; ẩn list/detail, delete lặp 204; giữ record/history/reference, không dùng cho đơn mới | [CatalogService](../src/OrderInventory.Application/Catalog/CatalogService.cs), [CustomerService](../src/OrderInventory.Application/Customers/CustomerService.cs); Order reference/snapshots hiện có |
 | TBD-05 | **Closed cho Identity** | Confirmed: username/password, access JWT 30 phút, không refresh; đổi role/active thực sự làm token cũ bị từ chối ở request kế tiếp | UC-AUTH01, UC-USR05/06; [token validator](../src/OrderInventory.Api/Security/CurrentAccountTokenValidator.cs) |
 | TBD-06 | Định nghĩa và cách đọc báo cáo | Chỉ Completed; thời điểm completedAt; tổng quantity × unitPriceSnapshot; query tối ưu qua EF Core | UC-REP01/02/03, RevenuePolicy |
 | TBD-07 | **Selected cho nền tảng dùng chung** | Service thuần + port chuyên biệt, manual Application validation; không MediatR/FluentValidation/generic repository | [Application](../src/OrderInventory.Application), [Infrastructure](../src/OrderInventory.Infrastructure) |
 | TBD-08 | **Quantity/whole VND và order bounds Confirmed** | Max100 input lines, merge quantity ≤int.MaxValue, line/order amounts ≤18 whole VND digits. Selected int Order/Line PK; decimal(18,0) amounts | OrderPricingPolicy, Domain/Orders, OrderConfiguration |
 | TBD-09 | **Customer fields/delete/cardinality Confirmed** | Name≤200 required; optional phone≤32/email≤254 valid/address≤1000, trim/blank→null, no unique contact; Customer bắt buộc/chưa xóa cho đơn mới | CustomerRules; Orders migration/CustomerId FK Restrict hiện có |
-| TBD-10 | **Identity/catalog/stock/Customer/order read Confirmed** | Customer Admin/Staff CRUD trừ delete/history Admin-only; Admin/Staff tạo và xem mọi đơn. Admin mọi đơn, Staff chỉ complete/cancel đơn mình tạo | Controllers/OrderLifecyclePolicy hiện có cho complete; cancel chưa triển khai |
+| TBD-10 | **Identity/catalog/stock/Customer/order read Confirmed** | Customer Admin/Staff CRUD trừ delete/history Admin-only; Admin/Staff tạo và xem mọi đơn. Admin mọi đơn, Staff chỉ complete/cancel đơn mình tạo | Controllers/OrderLifecyclePolicy hiện có cho complete/cancel |
 | TBD-11 | **Order query/create/detail Confirmed/Selected**; report còn mở | Business create/snapshot/bounds Confirmed giữ nguyên; list page/sort/filter/time defaults là implementer Selected, SQL count/page và retained snapshots | [OrderQueryValidation](../src/OrderInventory.Application/Orders/OrderQueryValidation.cs), [EfOrderData](../src/OrderInventory.Infrastructure/Persistence/EfOrderData.cs), [OpenAPI](../src/OrderInventory.Api/OpenApi/OrderListOperationFilter.cs); report TBD |
-| TBD-12 | **No retry và lifecycle repeat Confirmed** | Không auto retry; commit chưa rõ trả503 commit_outcome_unknown + orderId/traceId, đối soát trước gửi lại. Lặp cùng complete/cancel trả200 giữ audit gốc, không thêm hiệu ứng; cross-state409 | UC-ORD01/05 có source; UC-ORD04 chưa triển khai |
+| TBD-12 | **No retry và lifecycle repeat Confirmed** | Không auto retry; commit chưa rõ trả503 commit_outcome_unknown + orderId/traceId, đối soát trước gửi lại. Lặp cùng complete/cancel trả200 giữ audit gốc, không thêm hiệu ứng; cross-state409 | UC-ORD01/04/05 có source |
 | TBD-13 | **Local baseline Selected** | Pins ở global/package/Compose/Dockerfile; one-shot migrator; Application-owned atomic seed; UI/spec anonymous chỉ Development do user Confirmed | Mục 7.5 và [README](../README.md); nghiệm thu startup ở report |
 | TBD-14 | **Auth bounds Selected**; vận hành/hiệu năng còn mở | Password 12–128, JWT HS256 key Base64 tối thiểu 32 byte, zero clock skew; tải/latency/log retention/rate limit vẫn TBD | [IdentityValidation](../src/OrderInventory.Application/Identity/IdentityValidation.cs), [JwtOptions](../src/OrderInventory.Infrastructure/Configuration/JwtOptions.cs), [Program](../src/OrderInventory.Api/Program.cs) |
 
 Trong TBD-06 còn phải chốt timezone, khoảng ngày, tiền tệ/làm tròn, top theo số lượng hay tiền, xử lý đồng hạng và đơn hủy. Không được dùng phương án Proposed làm oracle nghiệm thu trước khi chính sách được duyệt.
 
-Lifecycle do user xác nhận ngày 2026-11-10: states/transitions, actor scope, repeat/cross-state và no-retry như register trên. Chỉ complete được giao triển khai hiện tại; việc Confirmed policy cancel không cấp quyền tự triển khai cancel hoặc Reporting. Lựa chọn lock/schema/HTTP error mapping là Selected bởi người triển khai, không phải user chọn kỹ thuật.
+Lifecycle do user xác nhận ngày 2026-11-10: states/transitions, actor scope, repeat/cross-state và no-retry như register trên. User đã giao complete, sau đó cancel/hoàn kho và integrated acceptance. Reporting cần giao việc và chốt policy riêng. Lựa chọn lock/schema/HTTP error mapping là Selected bởi người triển khai, không phải user chọn kỹ thuật.
 
 ### 1.7 Business Rule Register
 
@@ -157,13 +157,13 @@ Lifecycle do user xác nhận ngày 2026-11-10: states/transitions, actor scope,
 | BR-08 | Các yêu cầu đồng thời phải bảo vệ BR-05; kiểm tra tồn rồi ghi lại mà không có bảo vệ cạnh tranh không đủ | Required, R-T06; cơ chế TBD-01 |
 | BR-09 | Xóa mềm sản phẩm không làm mất/sai thông tin đơn cũ | Required, R-T04; snapshot là cơ chế Proposed |
 | BR-10 | Bản ghi xóa mềm không xuất hiện trong danh sách sản phẩm thông thường; chính sách thực thể khác còn TBD | Required, AC-07; TBD-04 |
-| BR-11 | Pending → Completed hoặc Cancelled, cả hai terminal; complete không đổi tồn; không hủy Completed hoặc mở lại Cancelled | Confirmed bởi user; complete Implemented tại [OrderLifecyclePolicy](../src/OrderInventory.Application/Orders/OrderLifecyclePolicy.cs), cancel chưa triển khai |
-| BR-12 | Hủy Pending hoàn đúng lượng đã trừ một lần, kể cả product đã xóa mềm; trạng thái + kho + movement cùng transaction | Confirmed bởi user; chưa triển khai cancel/return movement; BR-06 |
+| BR-11 | Pending → Completed hoặc Cancelled, cả hai terminal; complete không đổi tồn; không hủy Completed hoặc mở lại Cancelled | Confirmed bởi user; complete Implemented tại [OrderLifecyclePolicy](../src/OrderInventory.Application/Orders/OrderLifecyclePolicy.cs), cancel có source |
+| BR-12 | Hủy Pending hoàn đúng lượng đã trừ một lần, kể cả product đã xóa mềm; trạng thái + kho + movement cùng transaction | Confirmed bởi user; [OrderService](../src/OrderInventory.Application/Orders/OrderService.cs) và [shared writer](../src/OrderInventory.Infrastructure/Persistence/EfInventoryWriter.cs) là owners; BR-06 |
 | BR-13 | Báo cáo chỉ Admin; số liệu phải khớp chính sách doanh thu và bộ dữ liệu chuẩn đã duyệt | Required về quyền/độ đúng; công thức TBD-06 |
 | BR-14 | Không đưa mật khẩu, token hay khóa ký vào code/tài liệu/log; chỉ cấu hình qua kênh secret phù hợp | Required, R-T13 |
 | BR-15 | Định giá từ server, chụp SKU/tên/đơn giá lúc tạo; tổng đơn bằng tổng dòng; không nhận tổng tiền từ client làm giá trị có thẩm quyền | Confirmed cho create/detail; owner OrderPricingPolicy/OrderService; phục vụ BR-09 |
 | BR-16 | Danh sách có paging/filter/sort; sort allowlist và khóa phụ duy nhất | Required; cơ chế Selected/Implemented ở query validation và SQL adapters, gồm Orders |
-| BR-17 | Không auto retry write; commit chưa rõ trả503 để đối soát. Lặp cùng complete/cancel trả200, giữ thời điểm/người thực hiện gốc và không thêm hiệu ứng; cross-state409 | Confirmed; complete có source, cancel chưa triển khai; create không có idempotency key |
+| BR-17 | Không auto retry write; commit chưa rõ trả503 để đối soát. Lặp cùng complete/cancel trả200, giữ thời điểm/người thực hiện gốc và không thêm hiệu ứng; cross-state409 | Confirmed; complete/cancel có source; create không có idempotency key |
 | BR-18 | Customer là entity dữ liệu, không tự trở thành tài khoản/actor; Customer bắt buộc và chưa xóa cho đơn mới | Required về scope actor; Customer bắt buộc và chưa xóa cho đơn mới Confirmed |
 | BR-19 | Không hạ quyền hoặc vô hiệu hóa Admin active cuối cùng; bảo vệ cả khi có yêu cầu cạnh tranh | Confirmed bởi user cho UC-USR05/06; [UserAdministrationService](../src/OrderInventory.Application/Identity/UserAdministrationService.cs) và `SQL policy tests` (local-only) |
 | BR-20 | Role/active thay đổi thực sự làm token đã cấp bị từ chối ở request kế tiếp; no-op không thu hồi token | Confirmed về hiệu lực; Selected dùng TokenVersion và kiểm account/role/active mỗi request, xem [UserAccount](../src/OrderInventory.Domain/Identity/UserAccount.cs) và [token validator](../src/OrderInventory.Api/Security/CurrentAccountTokenValidator.cs) |
@@ -221,7 +221,7 @@ Mũi tam giác hướng về actor tổng quát. Admin và Staff cùng chuyên b
 | UC-CUS05 — xóa mềm | Có | Không | BR-22; delete lặp 204 |
 | UC-CUS06 — lịch sử thay đổi | Có | Không | BR-23; đọc được sau xóa mềm |
 | UC-ORD01/02/03 | Có | Có | Confirmed: Admin/Staff tạo và xem mọi đơn; list đã Implemented |
-| UC-ORD04 — hủy | Có, Pending | Chỉ đơn mình tạo, Pending | Confirmed; chưa triển khai, lặp Cancelled200 |
+| UC-ORD04 — hủy | Có, Pending | Chỉ đơn mình tạo, Pending | Confirmed; có source, lặp Cancelled200 giữ audit/reason gốc |
 | UC-ORD05 — hoàn tất | Có, Pending | Chỉ đơn mình tạo, Pending | Confirmed và Implemented; lặp Completed200 |
 | UC-REP01/02/03 | Có | Không | Công thức TBD-06 |
 | UC-USR01; UC-USR02…06 | Có | Không | List/detail/create/change-role/set-active Confirmed; BR-19/20 |
@@ -265,7 +265,7 @@ ID dùng prefix theo subsystem: AUTH, CAT, PRD, INV, CUS, ORD, REP, USR. ID khô
 | UC-ORD01 | Tạo đơn hàng nhiều dòng | Admin, Staff | Base | Required scope |
 | UC-ORD02 | Liệt kê/tìm đơn hàng | Admin, Staff | Base | Required scope; Admin/Staff mọi đơn Confirmed, query Selected/Implemented |
 | UC-ORD03 | Xem chi tiết đơn hàng | Admin, Staff | Base | Required scope; dữ liệu lịch sử |
-| UC-ORD04 | Hủy đơn hàng | Admin; Staff chỉ đơn mình tạo | Base | Lifecycle/hoàn kho Confirmed; chưa triển khai |
+| UC-ORD04 | Hủy đơn hàng | Admin; Staff chỉ đơn mình tạo | Base | Lifecycle/hoàn kho Confirmed; source hiện có |
 | UC-ORD05 | Hoàn tất đơn hàng | Admin; Staff chỉ đơn mình tạo | Base | Confirmed và Implemented; owner OrderService/OrderLifecyclePolicy |
 | UC-ORD06 | Kiểm tra và định giá đơn | Nội bộ | Include từ UC-ORD01 | Kiểm tra sản phẩm, số lượng, giá; policy create Confirmed; list/report còn TBD |
 | UC-ORD07 | Trừ kho cho đơn hàng | Nội bộ | Include từ UC-ORD01 | Bảo vệ cạnh tranh và gọi UC-INV05 |
@@ -299,7 +299,7 @@ flowchart LR
     ADM --> Q["UC-REP01 / 02 / 03 Reports"]
 ```
 
-UC-INV05 được thực hiện cho từng sản phẩm có thay đổi tồn, không phải một dòng lịch sử cho toàn bộ đơn. UC-ORD04 chỉ ghi lịch sử khi chuyển Pending → Cancelled thực sự đổi tồn; lặp hủy không thêm movement. Cancel/hoàn kho chưa triển khai.
+UC-INV05 được thực hiện cho từng sản phẩm có thay đổi tồn, không phải một dòng lịch sử cho toàn bộ đơn. UC-ORD04 chỉ ghi lịch sử khi chuyển Pending → Cancelled thực sự đổi tồn; lặp hủy không thêm movement. Owners cancel/hoàn kho là [OrderService](../src/OrderInventory.Application/Orders/OrderService.cs) và [EfInventoryWriter](../src/OrderInventory.Infrastructure/Persistence/EfInventoryWriter.cs).
 
 ### 3.4 Detail Selection and Shared Contract
 
@@ -311,7 +311,7 @@ Không ghi số lượng truy cập, tác giả cá nhân hoặc ngày phê duy�
 
 ## 4. Detailed Use Case Specifications
 
-UC-AUTH01, UC-USR02…06, UC-CAT01…05, UC-PRD01…05, UC-INV01…05 và UC-CUS01…06 có contract đã chốt. Các flow Order/Reporting là **Proposed realization**; flow có gate TBD không được xem là business contract đã duyệt. Ngoại lệ theo hợp đồng lỗi chung; không trả exception/EF entity cho người gọi.
+UC-AUTH01, UC-USR02…06, UC-CAT01…05, UC-PRD01…05, UC-INV01…05 và UC-CUS01…06 có contract đã chốt. Order có policy Confirmed và source tại owners được dẫn; Reporting vẫn **Proposed realization**. Flow có gate TBD không được xem là business contract đã duyệt. Ngoại lệ theo hợp đồng lỗi chung; không trả exception/EF entity cho người gọi.
 
 ### 4.1 UC-AUTH01 — Đăng nhập và nhận JWT
 
@@ -433,45 +433,45 @@ Không có refresh hoặc self-register. Ngoại lệ anonymous đã Confirmed c
 2. Mở owner transaction ReadCommitted; khóa/reload Customer bắt buộc, từ chối row thiếu/đã xóa.
 3. Khóa Products theo ID tăng dần, từ chối thiếu/đã xóa; snapshot server SKU/tên/giá dưới cùng transaction.
 4. Tính quantity × unit price và tổng dòng, không nhận giá/tổng/actor/status từ client. Giá/tổng VND nguyên, tối đa 18 chữ số mỗi dòng và đơn; không làm tròn.
-5. Lưu Order Pending và các dòng lấy IDs; CreatedBy/CreatedAt do server, CompletedAt/CancelledAt nullable hiện null.
+5. Lưu Order Pending và các dòng lấy IDs; CreatedBy/CreatedAt do server, completion/cancellation audit ban đầu null.
 6. Shared writer giảm kho có điều kiện và lấy actual balanceAfter; thêm một Sale movement/dòng chuẩn hóa, FK đúng OrderLine/Product. Không commit/retry trong helper.
 7. Save changes và đọc DTO dưới transaction; commit được xác nhận rồi trả201+Location. GET detail đọc retained snapshots, không join active Product/Customer làm mất dòng.
 
 **Alternative flows:** dòng trùng gộp trước khóa; rename/reprice sau commit không thay snapshot; soft-delete Customer/Product không làm mất đơn cũ. Không có khách lẻ thiếu Customer trong contract đã chốt. Concurrent price/delete được phân xử bằng cùng update lock, không hứa giá theo thời điểm request tới.
 
-**Exceptions:** input/overflow400, missing/deleted reference404, thiếu kho409, persistence fault trước commit rollback và ProblemDetails; deadlock được phân loại write_conflict409. Lỗi commit khác trả503 `commit_outcome_unknown` + orderId/traceId để đối soát trước gửi lại; không automatic retry/idempotency guarantee. Mất toàn bộ phản hồi mạng không chứng minh rollback hoặc đảm bảo nhận được orderId. Lifecycle/report policy còn Proposed/TBD, không thêm complete/cancel/list endpoint trong slice này.
+**Exceptions:** input/overflow400, missing/deleted reference404, thiếu kho409, persistence fault trước commit rollback và ProblemDetails; deadlock được phân loại write_conflict409. Lỗi commit khác trả503 `commit_outcome_unknown` + orderId/traceId để đối soát trước gửi lại; không automatic retry/idempotency guarantee. Mất toàn bộ phản hồi mạng không chứng minh rollback hoặc đảm bảo nhận được orderId. Lifecycle policy Confirmed, owners ở UC-ORD04/05; report policy vẫn Proposed/TBD.
 
 **Internal use cases:** UC-ORD06 chuẩn hóa/định giá; UC-ORD07 trừ kho; UC-INV05 ghi movement. Chúng dùng transaction và actor của create, không có endpoint độc lập. [EfOrderData](../src/OrderInventory.Infrastructure/Persistence/EfOrderData.cs), [Order mapping](../src/OrderInventory.Infrastructure/Persistence/Configurations/OrderConfiguration.cs) và [Orders migration](../src/OrderInventory.Infrastructure/Persistence/Migrations/20261107163830_Orders.cs) là owners hiện có.
 
-### 4.7 UC-ORD04 — Hủy đơn hàng, Confirmed Policy / Chưa triển khai
+### 4.7 UC-ORD04 — Hủy đơn hàng, Confirmed Policy / Source hiện có
 
 | Field | Specification |
 |---|---|
 | Primary actor | Admin mọi đơn; Staff chỉ đơn mình tạo |
-| Trigger | Actor yêu cầu hủy đơn |
+| Trigger | POST cancel với JSON body; reason optional, `{}` hợp lệ |
 | Preconditions | JWT/ownership hợp lệ; Pending cho chuyển trạng thái mới |
 | Success postconditions | Cancelled terminal; hoàn đúng lượng đã trừ một lần, gồm product đã xóa mềm; trạng thái/kho/movement cùng commit |
-| Failure postconditions | Không lưu thay đổi một phần |
+| Failure postconditions | Lỗi trước commit rollback toàn bộ; commit chưa rõ kết quả cần đối soát |
 | Rules | BR-02/05/06/11/12/17 |
-| Status | Business policy user Confirmed; route/schema/return movement chưa triển khai |
+| Owners | [OrdersController](../src/OrderInventory.Api/Controllers/OrdersController.cs), [OrderService](../src/OrderInventory.Application/Orders/OrderService.cs), [OrderLifecyclePolicy](../src/OrderInventory.Application/Orders/OrderLifecyclePolicy.cs), [EfOrderData](../src/OrderInventory.Infrastructure/Persistence/EfOrderData.cs), [EfInventoryWriter](../src/OrderInventory.Infrastructure/Persistence/EfInventoryWriter.cs) |
 
-**Main flow — Proposed implementation cho policy Confirmed**
+**Main flow — policy Confirmed, kỹ thuật Selected và có source**
 
-1. Xác thực và kiểm Admin/Staff chủ đơn, độc lập với quyền đọc mọi đơn.
-2. Mở transaction, đọc trạng thái để quyết định transition và chặn cạnh tranh.
-3. Pending → Cancelled có điều kiện; chỉ bên thắng được hoàn kho.
-4. Hoàn số lượng thực tế đã trừ theo dòng gốc; ghi return movement cùng transaction. Loại movement/source constraint/audit hủy cần được chọn trong slice cancel.
-5. Commit toàn bộ, trả200 DTO theo contract của slice cancel.
+1. Xác thực và kiểm Admin/Staff chủ đơn, độc lập với quyền đọc mọi đơn; kiểm quyền trước thao tác lặp.
+2. Mở transaction ReadCommitted, dùng cùng order lock với complete để quyết định transition.
+3. Pending → Cancelled có điều kiện; chỉ bên thắng ghi actor/time server và cancellation reason. Reason optional là lựa chọn Selected của người triển khai: trim, tối đa512 ký tự, blank→null; không nhận actor/time/status từ client.
+4. Hoàn lượng gốc theo productId tăng dần qua shared writer; mỗi dòng ghi một `CancellationReturn` delta dương, source OrderLine/Product khớp. State/audit/stock/history cùng transaction; helper không commit riêng.
+5. Commit toàn bộ rồi trả200 OrderDto, gồm `cancelledAt`, `cancelledBy`, `cancellationReason`; snapshots/tổng tiền không đổi.
 
 **Alternative flows**
 
-- **A1 — Đã Cancelled:** trả200 giữ audit gốc, không hoàn kho hoặc thêm movement lần nữa.
+- **A1 — Đã Cancelled:** actor được phép nhận200 giữ actor/time/reason gốc, không hoàn kho hoặc thêm movement lần nữa. Reason mới không thay lý do đã lưu.
 - **A2 — Product đã xóa mềm:** hoàn balance theo productId gốc; quyền bán lại vẫn theo catalog policy.
 
 **Exceptions**
 
-- **E1:** Staff không phải chủ đơn → Selected403 vì đã có quyền đọc mọi đơn; đơn không tồn tại404.
-- **E2:** Completed →409; không hủy đơn đã hoàn tất.
+- **E1:** Staff không phải chủ đơn →403 kể cả hủy lặp; thiếu JWT401; đơn không tồn tại404.
+- **E2:** Completed →409 `invalid_order_state`; không hủy đơn đã hoàn tất. Reason quá512 ký tự hoặc body sai →400 validation.
 - **E3:** Complete/cancel cùng Pending: chỉ một terminal transition; bên thua409 và không đổi tồn.
 - **E4:** Ghi state/stock/movement thất bại trước commit → rollback toàn bộ. Commit chưa rõ kết quả →503 để đối soát, không tự retry.
 
@@ -499,7 +499,7 @@ Không có refresh hoặc self-register. Ngoại lệ anonymous đã Confirmed c
 **Exceptions**
 
 - **E1:** Staff không phải chủ đơn403; thiếu JWT401; đơn không tồn tại404.
-- **E2:** Cancelled hoặc trạng thái khác không hợp lệ →409 `invalid_order_state`, không mở lại. Cancelled có trong policy/enum, chưa lưu được trong schema hiện tại.
+- **E2:** Cancelled hoặc trạng thái khác không hợp lệ →409 `invalid_order_state`, không mở lại. Schema hiện tại hỗ trợ Cancelled với audit/state constraint riêng.
 - **E3:** Lỗi trước commit không lưu audit/state một phần; lỗi commit chưa rõ kết quả →503 `commit_outcome_unknown` với orderId/traceId để GET đối soát. Không tự retry hoặc coi mất phản hồi là rollback.
 
 ### 4.9 UC-REP01 / UC-REP02 — Doanh thu theo ngày / tháng
@@ -583,13 +583,13 @@ Formula Proposed là tổng `quantity × unitPriceSnapshot` của dòng thuộc 
 
 1. Boundary/Application kiểm JWT/role, page/size, sort allowlist và filter bounds. Không suy ra ownership restriction cho Staff vì user đã chọn xem mọi đơn.
 2. Product query ẩn active catalog theo policy hiện hành. Order query dùng retained Orders/OrderLines, không join active Product/Customer.
-3. Order filters: customerId/createdBy/productId dương, status Pending/Completed, search≤200 trên SKU/name snapshots, CreatedAt UTC [from,to), whole VND total bounds. Không nhận SQL expression hoặc field tùy ý.
+3. Order filters: customerId/createdBy/productId dương, status Pending/Completed/Cancelled, search≤200 trên SKU/name snapshots, CreatedAt UTC [from,to), whole VND total bounds. Không nhận SQL expression hoặc field tùy ý.
 4. SQL áp dụng filter → count → sort/page → summary DTO + lineCount. Default page1/size20(max100), sort-createdAt; allow id/createdAt/total ± và ID ascending tie cho sort khác ID. Detail DTO chứa lines như trước.
 5. Trả PagedResult; search/order vẫn hiển thị sau Product rename/reprice/soft-delete hoặc Customer soft-delete, không sao chép contact Customer.
 
-**Alternative flows:** không match/trang vượt dữ liệu → empty items, giữ totalCount; optional blank search→null; status case-insensitive→Pending/Completed. Offset paging ổn định cho dataset không đổi, không cam kết snapshot xuyên request hoặc giữa count/page khi có concurrent commits.
+**Alternative flows:** không match/trang vượt dữ liệu → empty items, giữ totalCount; optional blank search→null; status case-insensitive→Pending/Completed/Cancelled. Offset paging ổn định cho dataset không đổi, không cam kết snapshot xuyên request hoặc giữa count/page khi có concurrent commits.
 
-**Exceptions:** query sai400 ProblemDetails/errors; thiếu JWT401, role ngoài Admin/Staff403; SQL failure theo global handler. Query cho phép Pending/Completed; Cancelled chưa persistable, báo cáo còn Proposed/TBD.
+**Exceptions:** query sai400 ProblemDetails/errors; thiếu JWT401, role ngoài Admin/Staff403; SQL failure theo global handler. Query cho phép Pending/Completed/Cancelled; báo cáo còn Proposed/TBD.
 
 ### 4.12 UC-CUS05 — Xóa mềm khách hàng
 
@@ -705,7 +705,7 @@ API bao gồm các subsystem nghiệp vụ; SQL Server nằm trong ranh giới g
 
 ### 5.2 Conceptual Class Model — Proposed
 
-Mô hình sau là miền v1 dự kiến, không phải ERD hiện có. UserAccount/catalog/inventory và [Customer](../src/OrderInventory.Domain/Customers/Customer.cs) đã có source/mapping; Order/OrderLine và CustomerId FK đã có source/mapping; completion audit đã có source, cancellation vẫn là implementation target. `Identifier`, `Quantity`, `Money`, `Instant` là kiểu khái niệm; ID/total bounds của entity tương lai còn TBD-08. Schema hiện có, gồm CustomerAuditEntries, nằm trong [README](../README.md#cấu-trúc-và-schema-hiện-có).
+Mô hình sau là miền v1 dự kiến, không phải ERD hiện có. UserAccount/catalog/inventory và [Customer](../src/OrderInventory.Domain/Customers/Customer.cs) đã có source/mapping; Order/OrderLine và CustomerId FK đã có source/mapping; completion/cancellation audit đã có source. `Identifier`, `Quantity`, `Money`, `Instant` là kiểu khái niệm; ID/total bounds của entity tương lai còn TBD-08. Schema hiện có, gồm CustomerAuditEntries, nằm trong [README](../README.md#cấu-trúc-và-schema-hiện-có).
 
 ```mermaid
 classDiagram
@@ -750,6 +750,8 @@ classDiagram
         Instant completedAt
         Identifier completedBy
         Instant cancelledAt
+        Identifier cancelledBy
+        string cancellationReason
         Money total
     }
     class OrderLine {
@@ -766,15 +768,16 @@ classDiagram
     UserAccount "1" --> "0..*" InventoryMovement : performs
     UserAccount "1" --> "0..*" Order : creates
     UserAccount "0..1" --> "0..*" Order : completes
-    Customer "0..1" --> "0..*" Order : associatedWith
+    UserAccount "0..1" --> "0..*" Order : cancels
+    Customer "1" --> "0..*" Order : associatedWith
     Order "1" *-- "1..*" OrderLine : contains
     Product "1" --> "0..*" OrderLine : referencedBy
     OrderLine "0..1" --> "0..*" InventoryMovement : saleOrCancellation
 ```
 
-Các multiplicity là Proposed: mỗi Product thuộc một Category; mỗi Product có một balance cho kho duy nhất; Order có ít nhất một dòng; Customer của Order bắt buộc theo xác nhận hiện hành. Một movement nhập/điều chỉnh không cần OrderLine; movement bán/hoàn có thể tham chiếu một dòng. Nếu chọn mô hình một product xuất hiện nhiều dòng trong đơn thay vì gộp, phải sửa policy history và cardinality ở chỗ phân bổ movement.
+Các multiplicity là Proposed: mỗi Product thuộc một Category; mỗi Product có một balance cho kho duy nhất; Order có ít nhất một dòng; Customer của Order bắt buộc theo xác nhận hiện hành. Một movement nhập/điều chỉnh không cần OrderLine; movement Sale/CancellationReturn bắt buộc tham chiếu đúng một dòng và product tương ứng; tối đa một movement mỗi loại cho từng dòng. Nếu chọn mô hình một product xuất hiện nhiều dòng trong đơn thay vì gộp, phải sửa policy history và cardinality ở chỗ phân bổ movement.
 
-`concurrencyMarker` chỉ là điểm mở cho mô hình tương lai; catalog/Customer đã dùng rowversion và update lock, stock writer dùng conditional update. Customer.isDeleted đã Implemented; Order snapshots và completion audit đã có; Cancelled/return movement chưa persistable. Mapping và migrations sở hữu shape schema. Không lấy class model này làm migration authority.
+`concurrencyMarker` chỉ là điểm mở cho mô hình tương lai; catalog/Customer đã dùng rowversion và update lock, stock writer dùng conditional update. Customer.isDeleted đã Implemented; Order snapshots, completion/cancellation audit và CancellationReturn đã có source. Mapping và migrations sở hữu shape schema. Không lấy class model này làm migration authority.
 
 ### 5.3 Entity Responsibilities and Invariants
 
@@ -787,7 +790,7 @@ Các multiplicity là Proposed: mỗi Product thuộc một Category; mỗi Prod
 | InventoryMovement | balanceAfter = balanceBefore + delta tại thời điểm thay đổi; một dòng cho một thay đổi thực tế | Implemented; [entity](../src/OrderInventory.Domain/Inventory/InventoryMovement.cs) |
 | Customer | Profile khách hàng, không đồng nhất UserAccount; soft-delete giữ lịch sử | BR-18/21/22; [Domain owner](../src/OrderInventory.Domain/Customers/Customer.cs) |
 | CustomerAuditEntry | Action/actor/time/tên trường, không sao chép profile; Admin đọc sau xóa | BR-23; [Domain owner](../src/OrderInventory.Domain/Customers/CustomerAuditEntry.cs) |
-| Order | Bao gồm nhiều dòng, createdBy và trạng thái; commit cùng tác động kho khi có | BR-07/11/12; complete hiện có, cancel chưa triển khai |
+| Order | Bao gồm nhiều dòng, createdBy và trạng thái; commit cùng tác động kho khi có | BR-07/11/12; complete/cancel hiện có |
 | OrderLine | Lượng bán và thông tin bán tại thời điểm tạo; không phụ thuộc giá hiện tại để đọc đơn cũ | BR-09 Required; snapshot/giá tính toán Proposed |
 
 Số dư sau của một movement cũ không nhất thiết bằng tồn hiện tại, vì có thể đã có movement mới. Kiểm tra đối soát phải so cùng thời điểm hoặc dùng chuỗi `openingBalance + Σ delta = onHand`. Seed tồn dương phải đi qua cơ chế ghi lịch sử/điểm mở đầu được định nghĩa; không tạo số dư mà không thể đối soát.
@@ -800,11 +803,11 @@ Số dư sau của một movement cũ không nhất thiết bằng tồn hiện 
 | Unique balance key theo productId | Không có hai số dư cho cùng sản phẩm | Có tách bảng balance hay không TBD-07/08 |
 | Check constraint onHand ≥ 0 | Lớp bảo vệ cuối cho bất biến kho | Conditional update/isolation vẫn phải chốt; constraint không thay thế flow |
 | FK OrderLine → Order/Product | Giữ liên kết và ngăn xóa vật lý phá đơn cũ | Soft delete và lịch sử TBD-04 |
-| FK Movement → Product/actor và OrderLine tùy loại | Truy vết nguồn thay đổi tồn | Nullability và seed actor TBD-13 |
-| Ràng buộc chuyển trạng thái/version | Ngăn terminal transition cùng thắng và hoàn kho hai lần | [OrderConfiguration](../src/OrderInventory.Infrastructure/Persistence/Configurations/OrderConfiguration.cs) và EfOrderData cho complete; cancel chưa triển khai |
+| FK Movement → Product/actor và OrderLine tùy loại | Truy vết nguồn thay đổi tồn | [Movement mapping](../src/OrderInventory.Infrastructure/Persistence/Configurations/InventoryConfiguration.cs): composite FK source line/product; unique source line/type cho một Sale và một CancellationReturn |
+| Ràng buộc chuyển trạng thái/version | Ngăn terminal transition cùng thắng và hoàn kho hai lần | [OrderConfiguration](../src/OrderInventory.Infrastructure/Persistence/Configurations/OrderConfiguration.cs) và [EfOrderData](../src/OrderInventory.Infrastructure/Persistence/EfOrderData.cs) cho complete/cancel |
 | Money precision/scale, quantity bounds | Tránh mất chính xác/tràn số | TBD-08/11 |
 
-Constraints catalog/inventory đã có tại CatalogInventory migration; Customer/audit thuộc [CustomerConfiguration](../src/OrderInventory.Infrastructure/Persistence/Configurations/CustomerConfiguration.cs) và [Customers migration](../src/OrderInventory.Infrastructure/Persistence/Migrations/20261106190613_Customers.cs), với audit FK Restrict tới Customer/UserAccount và check action. Identity thuộc [DbContext](../src/OrderInventory.Infrastructure/Persistence/OrderInventoryDbContext.cs) và [InitialIdentity](../src/OrderInventory.Infrastructure/Persistence/Migrations/20261103010353_InitialIdentity.cs). Order/OrderLine và CustomerId FK thuộc [Orders migration](../src/OrderInventory.Infrastructure/Persistence/Migrations/20261107163830_Orders.cs). Completion audit và state constraint Pending/Completed thuộc forward [OrderCompletion migration](../src/OrderInventory.Infrastructure/Persistence/Migrations/20261109172927_OrderCompletion.cs); migration này không mở Cancelled/return movement.
+Constraints catalog/inventory đã có tại CatalogInventory migration; Customer/audit thuộc [CustomerConfiguration](../src/OrderInventory.Infrastructure/Persistence/Configurations/CustomerConfiguration.cs) và [Customers migration](../src/OrderInventory.Infrastructure/Persistence/Migrations/20261106190613_Customers.cs), với audit FK Restrict tới Customer/UserAccount và check action. Identity thuộc [DbContext](../src/OrderInventory.Infrastructure/Persistence/OrderInventoryDbContext.cs) và [InitialIdentity](../src/OrderInventory.Infrastructure/Persistence/Migrations/20261103010353_InitialIdentity.cs). Order/OrderLine và CustomerId FK thuộc [Orders migration](../src/OrderInventory.Infrastructure/Persistence/Migrations/20261107163830_Orders.cs). Completion audit và state constraint Pending/Completed thuộc forward [OrderCompletion migration](../src/OrderInventory.Infrastructure/Persistence/Migrations/20261109172927_OrderCompletion.cs); migration này giữ nguyên lịch sử. Forward [OrderCancellation migration](../src/OrderInventory.Infrastructure/Persistence/Migrations/20261110181151_OrderCancellation.cs) mở Cancelled audit và CancellationReturn, giữ composite FK source line/product và unique source line/type.
 
 ## 6. Object and Class Structuring
 
@@ -827,7 +830,7 @@ HTTP controller là boundary. OrderService mới là control điều phối UC; 
 | [CategoriesController](../src/OrderInventory.Api/Controllers/CategoriesController.cs), [ProductsController](../src/OrderInventory.Api/Controllers/ProductsController.cs), catalog DTO | Catalog CRUD/list hiện có | UC-CAT01…05, UC-PRD01…05 |
 | [InventoryController](../src/OrderInventory.Api/Controllers/InventoryController.cs), ReceiptRequest, AdjustmentRequest, MovementDto | Tồn/nhập/điều chỉnh/history hiện có | UC-INV01…04 |
 | [CustomersController](../src/OrderInventory.Api/Controllers/CustomersController.cs), CustomerDto/CustomerAuditDto | CRUD và lịch sử thay đổi hiện có; contract tại [Application](../src/OrderInventory.Application/Customers/Contracts.cs) | UC-CUS01…06 |
-| [OrdersController](../src/OrderInventory.Api/Controllers/OrdersController.cs), CreateOrderRequest, OrderDto | Create/list/detail/complete hiện có; cancel chưa triển khai | UC-ORD01/02/03/05 hiện có, UC-ORD04 tương lai |
+| [OrdersController](../src/OrderInventory.Api/Controllers/OrdersController.cs), CreateOrderRequest, OrderDto | Create/list/detail/complete/cancel hiện có | UC-ORD01/02/03/04/05 hiện có |
 | ReportsController, RevenueReportDto, TopProductReportDto | Validate query báo cáo và trả projection | UC-REP01…03 |
 | [UsersController](../src/OrderInventory.Api/Controllers/UsersController.cs), UserDto | Identity owner hiện có; contract tại Application | UC-USR02…06 |
 | GlobalExceptionHandler | Ánh xạ exception được phân loại thành ProblemDetails, che lỗi nội bộ | Tất cả UC HTTP |
@@ -860,12 +863,12 @@ Identity/catalog/inventory/Customer hiện có dùng các port trong [Applicatio
 |---|---|---|
 | [OrderPricingPolicy](../src/OrderInventory.Application/Orders/OrderPricingPolicy.cs) | Chuẩn hóa dòng và bounds, Domain/Orders chụp giá/tính tiền | BR-15; policy create đã Confirmed |
 | StockRules | Quantity hợp lệ và số dư không âm về mặt nghiệp vụ; không thay thế database concurrency | BR-05/08 |
-| [OrderLifecyclePolicy](../src/OrderInventory.Application/Orders/OrderLifecyclePolicy.cs) | Policy lifecycle/ownership; complete hiện có, cancel chưa triển khai | BR-11/12/17; quyền Confirmed tại TBD-02/10 |
+| [OrderLifecyclePolicy](../src/OrderInventory.Application/Orders/OrderLifecyclePolicy.cs) | Policy lifecycle/ownership; complete/cancel hiện có | BR-11/12/17; quyền Confirmed tại TBD-02/10 |
 | ResourceAuthorizationPolicy | Role và ownership/phạm vi đọc | BR-02; TBD-02/10 |
 | RevenuePolicy | Eligibility, timestamp, bucket, metric và rounding | BR-13; TBD-06/08 |
 | IInventoryWriter | Tăng/giảm có điều kiện, trả balanceAfter; ghi movement trong transaction hiện hành | BR-05…08 |
 | IUnitOfWork | Bắt đầu/commit/rollback transaction chung; không cho helper commit riêng | BR-07/12 |
-| ICatalogData, ICustomerData, [IOrderData](../src/OrderInventory.Application/Abstractions/IOrderData.cs) | Các port đọc/ghi hiện có theo UC | Service/port style Selected; list/complete hiện có; cancel chưa triển khai |
+| ICatalogData, ICustomerData, [IOrderData](../src/OrderInventory.Application/Abstractions/IOrderData.cs) | Các port đọc/ghi hiện có theo UC | Service/port style Selected; list/complete/cancel hiện có |
 | IRevenueQuery | Projection báo cáo được lọc và aggregate tại SQL | R-T08 |
 | ITokenIssuer, IPasswordVerifier | Hợp đồng bảo mật tách khỏi orchestration | BR-01/14 |
 
@@ -960,7 +963,7 @@ sequenceDiagram
 
 Gọi SQL trực tiếp trong sơ đồ là lược giản tương tác qua adapter, không cho phép OrderService phụ thuộc SQL Server/EF. Khi bất kỳ dòng thất bại, vòng lặp dừng ngay và đi vào rollback; các bước còn lại không được thực hiện. Lỗi chưa biết kết quả tại commit cần reconciliation theo TBD-12, không thuộc nhánh “đã rollback chắc chắn”.
 
-### 6.6 Sequence — UC-ORD04 Cancel With Restock, Proposed Implementation
+### 6.6 Sequence — UC-ORD04 Cancel With Restock, Selected Implementation
 
 ```mermaid
 sequenceDiagram
@@ -971,27 +974,27 @@ sequenceDiagram
     participant U as IUnitOfWork
     participant W as IInventoryWriter
     participant D as SQL Server
-    A->>B: Cancel request + JWT
+    A->>B: JSON body with optional reason + JWT
     B->>C: Cancel order
-    C->>C: Check role and ownership policy
+    C->>C: Check role
     C->>U: Begin transaction
     U->>D: BEGIN
-    C->>D: Read order through IOrderData
+    C->>D: Lock order through IOrderData
     D-->>C: Order and lines
-    C->>L: Check cancel transition and restock policy
-    L-->>C: Confirmed Pending to Cancelled, restock
-    C->>D: Conditional state transition
-    D-->>C: Affected rows
-    alt Transition wins exactly once
-        loop Each previously deducted product
+    C->>L: Check ownership before repeat and transition
+    L-->>C: Pending, repeated Cancelled or terminal conflict
+    alt Pending and authorized
+        C->>D: Conditional state plus actor, time and reason
+        D-->>C: One affected row or conflict
+        loop Each original line sorted by productId
             C->>W: Restore quantity
-            W->>D: Atomic increment and one return movement
+            W->>D: Atomic increment and one CancellationReturn
         end
         alt All writes succeed
             C->>U: Commit state + stock + history
             U->>D: COMMIT
             B-->>A: OrderDto
-        else Any write fails
+        else Any write before commit fails
             C->>U: Rollback all
             U->>D: ROLLBACK
             B-->>A: ProblemDetails
@@ -999,11 +1002,13 @@ sequenceDiagram
     else Repeat cancellation or another terminal state
         C->>U: End without stock changes
         U->>D: ROLLBACK
-        B-->>A: Repeat 200; cross-state 409
+        B-->>A: Repeat 200 or cross-state 409
     end
 ```
 
-Business policy đã Confirmed; sequence là phương án triển khai cancel chưa có source. Actor “Authorized actor” tuân theo matrix: Admin mọi đơn, Staff chỉ đơn mình tạo. Không gọi UC-INV02 để hoàn kho, vì hoàn kho cần giữ nguyên transaction hủy đơn và loại movement riêng.
+Business policy đã Confirmed; owners hiện có là [OrderService](../src/OrderInventory.Application/Orders/OrderService.cs), [EfOrderData](../src/OrderInventory.Infrastructure/Persistence/EfOrderData.cs) và [EfInventoryWriter](../src/OrderInventory.Infrastructure/Persistence/EfInventoryWriter.cs). Actor “Authorized actor” tuân theo matrix: Admin mọi đơn, Staff chỉ đơn mình tạo. Không gọi UC-INV02 để hoàn kho, vì hoàn kho cần giữ nguyên transaction hủy đơn và loại movement riêng.
+
+Commit mất phản hồi trả503 outcome unknown và cần đối soát; không thuộc nhánh khẳng định rollback trước commit.
 
 ### 6.7 Sequence — UC-REP01/02/03, Proposed
 
@@ -1045,11 +1050,11 @@ stateDiagram-v2
 |---|---|---|---|---|
 | Chưa tồn tại → Pending | UC-ORD01 | DTO, sản phẩm, giá và tồn hợp lệ | Trừ kho + movement trong transaction tạo | Confirmed/Implemented |
 | Pending → Completed | UC-ORD05 | Admin hoặc Staff chủ đơn; conditional state update thắng | Không đổi tồn | Confirmed/Implemented |
-| Pending → Cancelled | UC-ORD04 | Admin hoặc Staff chủ đơn; conditional update thắng | Hoàn đúng lượng đã trừ + movement cùng transaction | Confirmed; chưa triển khai |
-| Completed → Cancelled | Không có UC | Bị từ chối409; trả hàng/hoàn tiền ngoài scope | Không đổi tồn | Confirmed restriction; cancel chưa triển khai |
+| Pending → Cancelled | UC-ORD04 | Admin hoặc Staff chủ đơn; conditional update thắng | Hoàn đúng lượng đã trừ + movement cùng transaction | Confirmed; có source |
+| Completed → Cancelled | Không có UC | Bị từ chối409; trả hàng/hoàn tiền ngoài scope | Không đổi tồn | Confirmed restriction; có source |
 | Cancelled → Pending/Completed | Không có UC | Bị từ chối409; không tự mở lại đơn | Không đổi tồn | Confirmed restriction |
 
-Pending đã giảm on-hand, không cần reservation subsystem riêng. Completed/Cancelled là terminal theo user Confirmed. Lặp cùng thao tác trả200, giữ audit gốc và không thêm hiệu ứng; chuyển terminal khác trả409. Timeout tự hủy Pending ngoài scope. Enum giữ Cancelled cho policy, nhưng [OrderConfiguration](../src/OrderInventory.Infrastructure/Persistence/Configurations/OrderConfiguration.cs) chỉ cho lưu Pending/Completed tới khi triển khai cancel. Quyết định trạng thái không chốt RevenuePolicy.
+Pending đã giảm on-hand, không cần reservation subsystem riêng. Completed/Cancelled là terminal theo user Confirmed. Lặp cùng thao tác trả200, giữ audit gốc và không thêm hiệu ứng; chuyển terminal khác trả409. Timeout tự hủy Pending ngoài scope. [OrderConfiguration](../src/OrderInventory.Infrastructure/Persistence/Configurations/OrderConfiguration.cs) cho lưu Pending/Completed/Cancelled và audit tương ứng từng terminal state. Quyết định trạng thái không chốt RevenuePolicy.
 
 ### 6.9 Product State Model — Proposed
 
@@ -1175,7 +1180,7 @@ V1 dừng ở chạy cục bộ. [README](../README.md#cấu-hình-và-chạy-lo
 
 ### 7.6 API Surface — Current Identity and Proposed Business APIs
 
-**Identity/catalog/inventory/Customer hiện có:** route/method/status được ghi tại [README — API hiện có](../README.md#api-hiện-có), với link tới controller/DTO/OpenAPI owner. UC-USR01 là umbrella, không có endpoint riêng. **Endpoint create/list/detail/complete đã có; cancel chưa triển khai, Reporting vẫn Proposed**; các UC `include` cũng không có endpoint.
+**Identity/catalog/inventory/Customer hiện có:** route/method/status được ghi tại [README — API hiện có](../README.md#api-hiện-có), với link tới controller/DTO/OpenAPI owner. UC-USR01 là umbrella, không có endpoint riêng. **Endpoint create/list/detail/complete/cancel đã có; Reporting vẫn Proposed**; các UC `include` cũng không có endpoint.
 
 | Method | Endpoint | UC | Quyền / trạng thái |
 |---|---|---|---|
@@ -1202,7 +1207,7 @@ V1 dừng ở chạy cục bộ. [README](../README.md#cấu-hình-và-chạy-lo
 | POST | `/api/v1/orders` | UC-ORD01 | Admin/Staff, Confirmed và Implemented |
 | GET | `/api/v1/orders` | UC-ORD02 | Admin/Staff mọi đơn Confirmed; query Selected/Implemented |
 | GET | `/api/v1/orders/{id}` | UC-ORD03 | Admin/Staff xem mọi đơn, Confirmed và Implemented |
-| POST | `/api/v1/orders/{id}/cancel` | UC-ORD04 | Quyền Confirmed: Admin mọi đơn, Staff chủ đơn; route Proposed, chưa triển khai |
+| POST | `/api/v1/orders/{id}/cancel` | UC-ORD04 | Admin mọi đơn, Staff chủ đơn; JSON body với reason optional;200OrderDto, repeat giữ audit/reason gốc |
 | POST | `/api/v1/orders/{id}/complete` | UC-ORD05 | Implemented; Admin mọi đơn, Staff chủ đơn; không body, 200 OrderDto |
 | GET | `/api/v1/reports/revenue?groupBy=day` | UC-REP01 | Admin |
 | GET | `/api/v1/reports/revenue?groupBy=month` | UC-REP02 | Admin |
@@ -1218,7 +1223,8 @@ Không có register, refresh, payment, shipment hay endpoint xóa đơn. Quyền
 | ReceiptRequest / AdjustmentRequest | productId, integer quantity hoặc signed delta, reason | [Inventory contracts](../src/OrderInventory.Application/Inventory/Contracts.cs); quantity > 0, delta khác 0; reason bắt buộc cho adjustment |
 | CustomerRequest / CustomerDto / CustomerAuditDto | Profile và lịch sử field names; không nhận actor/isDeleted từ payload | [Customer contracts](../src/OrderInventory.Application/Customers/Contracts.cs), [CustomerSchemaFilter](../src/OrderInventory.Api/OpenApi/CustomerSchemaFilter.cs) hiện có; BR-21/22/23 |
 | CreateOrderRequest | CustomerId bắt buộc và 1–100 dòng productId/quantity | [Contracts](../src/OrderInventory.Application/Orders/Contracts.cs), [OrderPricingPolicy](../src/OrderInventory.Application/Orders/OrderPricingPolicy.cs); server price/total/actor, merge/bounds Confirmed |
-| OrderDto | Snapshot/detail và completion audit; DTO owner [Contracts](../src/OrderInventory.Application/Orders/Contracts.cs) | [EfOrderData](../src/OrderInventory.Infrastructure/Persistence/EfOrderData.cs); Admin/Staff xem mọi đơn, không Customer contact |
+| CancelOrderRequest | JSON body bắt buộc; reason optional trim≤512, blank→null là kỹ thuật Selected | [Contracts](../src/OrderInventory.Application/Orders/Contracts.cs), [OrderService](../src/OrderInventory.Application/Orders/OrderService.cs); actor/time server, repeat giữ reason gốc |
+| OrderDto | Snapshot/detail và completion/cancellation audit; DTO owner [Contracts](../src/OrderInventory.Application/Orders/Contracts.cs) | [EfOrderData](../src/OrderInventory.Infrastructure/Persistence/EfOrderData.cs); Admin/Staff xem mọi đơn, không Customer contact |
 | ListQuery | page/pageSize, allowed filter/sort và UTC interval | [Order contracts](../src/OrderInventory.Application/Orders/Contracts.cs) và [OrderQueryValidation](../src/OrderInventory.Application/Orders/OrderQueryValidation.cs) hiện có; report query vẫn Proposed |
 | ReportQuery | from, to, granularity hoặc metric/top N | Timezone, interval, max range và ranking TBD-06/14 |
 
@@ -1272,7 +1278,7 @@ Các measure có căn cứ AC là yêu cầu nghiệm thu. Các measure bổ sun
 | QA-08 | Error safety: lỗi không dự kiến trong request | Global handler trả ProblemDetails, có correlation dự kiến | Proposed 500; 0 stack trace/password/token/connection secret trong response; log cũng không chứa secret | Required outcome, AC-09/R-T13 |
 | QA-09 | Local operability: chạy Compose với cấu hình hợp lệ trên môi trường sạch | Database sẵn sàng → migrate/seed → API ready, Swagger dùng được theo policy | API + SQL chạy, fixture tồn tại một lần; lặp startup không nhân đôi seed; thời gian ready tối đa TBD-13/14 | Required core, AC-01; idempotent seed Proposed |
 | QA-10 | Regression confidence: chạy suite sau thay đổi service | Unit tests chứng minh logic tạo đơn/trừ kho và lỗi liên quan | Các test thuộc scope đã chốt pass; test regression được thêm trước khi sửa lỗi | Required, AC-10/AGENTS; suite service/order hiện có local-only; kết quả theo execution report |
-| QA-11 | Lifecycle repeat/race: complete/complete, cancel/cancel hoặc complete/cancel cùng một Pending | Một terminal transition; repeat200 giữ audit gốc, cross-state409; không hoàn kho hai lần | Tối đa1 return mỗi lượng đã trừ; rollback nếu state/stock/history lỗi; complete không đổi kho | Confirmed policy; complete trong slice hiện tại, cancel/mixed races chưa triển khai |
+| QA-11 | Lifecycle repeat/race: complete/complete, cancel/cancel hoặc complete/cancel cùng một Pending | Một terminal transition; repeat200 giữ audit gốc, cross-state409; không hoàn kho hai lần | Tối đa1 return mỗi lượng đã trừ; rollback nếu state/stock/history lỗi; complete không đổi kho | Confirmed policy; complete/cancel có source; kết quả checks/races theo execution report local |
 | QA-12 | Performance: tải list và report trên dataset đã đóng băng | Database paging/aggregation giữ thời gian đáp ứng trong mục tiêu | Candidate Proposed: 10 client đồng thời, mỗi client 100 request; 1.000 sản phẩm, 10.000 đơn × 2 dòng; p95 list ≤ 500 ms, report ≤ 2 s; cấu hình máy/index phải ghi lại | Proposed target, TBD-14; không phải số đo thực tế |
 | QA-13 | Architecture: thêm rule hoặc use case mới | Không tạo dependency ngược từ Domain, không đặt business logic ở HTTP controller | 0 project reference từ Domain tới ba tầng còn lại; unit test rule không cần HTTP/SQL | Required architectural outcome, R-T01; cách kiểm tra Proposed |
 | QA-14 | API contract: lỗi validation, thiếu token, thiếu role và lỗi nghiệp vụ | Error shape nhất quán dù không phải mọi lỗi đều ném exception | Tập kiểm thử mỗi nhóm trả ProblemDetails hợp lệ, không entity/secret; HTTP status theo contract | Required, R-T02; nền tảng lỗi đã Implemented, bằng chứng ở report |
@@ -1285,7 +1291,7 @@ Các measure có căn cứ AC là yêu cầu nghiệm thu. Các measure bổ sun
 | Verification level | Chứng minh điều gì | Không được kết luận từ nó |
 |---|---|---|
 | Unit — Domain/Application | Pricing/lifecycle/permission policy đã chốt; orchestration thành công/thiếu kho/lỗi ghi; controller không chứa nghiệp vụ | Không chứng minh transaction/isolation/SQL uniqueness bằng mock |
-| SQL Server integration | Rollback nhiều dòng, conditional update, history balance, SKU race, complete hiện có, cancel/mixed race khi được giao triển khai | Không thay SQL Server bằng EF InMemory rồi tuyên bố AC-04 đạt |
+| SQL Server integration | Rollback nhiều dòng, conditional update, history balance, SKU race, complete/cancel và mixed writers theo Phase05 được giao | Không thay SQL Server bằng EF InMemory rồi tuyên bố AC-04 đạt |
 | HTTP integration | JWT/role/resource scope, DTO validation, ProblemDetails kể cả 401/403, paging và projection | Không mặc định framework defaults đã khớp contract |
 | Local smoke | Compose, startup migration/seed, Swagger, đăng nhập và một luồng tạo đơn | Không thay bằng mô tả deployment hoặc ảnh Swagger chưa chạy |
 | Report verification | Query và oracle độc lập trên fixture nhỏ đã biết, biên ngày/tháng, sản phẩm đã xóa | Không dùng chính output query làm expected value |
@@ -1299,16 +1305,16 @@ Chỉ chạy test hiệu năng khi mục tiêu/workload đã duyệt. Lệnh ch�
 
 ### 9.1 Requirements → Use Cases → Current or Proposed Design
 
-Identity/catalog/inventory/Customer dẫn tới owner hiện có; Complete có owner hiện có; cancel là implementation target, Reporting vẫn Proposed ở mục 5–7. “Tất cả UC” chỉ những UC áp dụng trong inventory, không bổ sung chức năng để lấp bảng. Capability chưa rõ giữ gate TBD.
+Identity/catalog/inventory/Customer dẫn tới owner hiện có; Complete/cancel có owners hiện có; Reporting vẫn Proposed ở mục 5–7. “Tất cả UC” chỉ những UC áp dụng trong inventory, không bổ sung chức năng để lấp bảng. Capability chưa rõ giữ gate TBD.
 
 | Requirement | Use Cases | Proposed design components | Verification / gate |
 |---|---|---|---|
 | R-F01 | UC-AUTH01; precondition của tất cả UC được bảo vệ | [AuthenticationService](../src/OrderInventory.Application/Identity/AuthenticationService.cs), [token validator](../src/OrderInventory.Api/Security/CurrentAccountTokenValidator.cs) | QA-01/14; Identity contract Confirmed, evidence ở report |
 | R-F02 | Catalog/inventory/order/customer theo matrix; UC-REP01…03, UC-USR01 | ResourceAuthorizationPolicy, role checks ở boundary, application resource scope | QA-01; TBD-02/10 |
 | R-F03 | UC-CAT01…05, UC-PRD01…05 | [CatalogService](../src/OrderInventory.Application/Catalog/CatalogService.cs), [domain](../src/OrderInventory.Domain/Catalog), [EfCatalogData](../src/OrderInventory.Infrastructure/Persistence/EfCatalogData.cs) | QA-05/06; catalog policy Confirmed/Implemented |
-| R-F04 | UC-INV01…05; UC-ORD07 tương lai | [InventoryService](../src/OrderInventory.Application/Inventory/InventoryService.cs), [writer](../src/OrderInventory.Infrastructure/Persistence/EfInventoryWriter.cs), [reads](../src/OrderInventory.Infrastructure/Persistence/EfInventoryData.cs) | QA-03/04; receipt/adjust/history Implemented; order integration còn Proposed |
+| R-F04 | UC-INV01…05; UC-ORD07, UC-ORD04 | [InventoryService](../src/OrderInventory.Application/Inventory/InventoryService.cs), [writer](../src/OrderInventory.Infrastructure/Persistence/EfInventoryWriter.cs), [reads](../src/OrderInventory.Infrastructure/Persistence/EfInventoryData.cs) | QA-03/04; receipt/adjust/history và order stock integration có source |
 | R-F05 | UC-CUS01…06 | [CustomersController](../src/OrderInventory.Api/Controllers/CustomersController.cs), [CustomerService](../src/OrderInventory.Application/Customers/CustomerService.cs), Customer/CustomerAuditEntry, [ICustomerData](../src/OrderInventory.Application/Abstractions/ICustomerData.cs) | BR-21/22/23, QA-15; field/delete/role/audit Confirmed; Customer–Order required FK hiện có |
-| R-F06 | UC-ORD01/02/03/05/06/07 hiện có; UC-ORD04 tương lai | [OrdersController](../src/OrderInventory.Api/Controllers/OrdersController.cs), [OrderService](../src/OrderInventory.Application/Orders/OrderService.cs), [OrderLifecyclePolicy](../src/OrderInventory.Application/Orders/OrderLifecyclePolicy.cs), [Order/OrderLine](../src/OrderInventory.Domain/Orders/Order.cs) | QA-02/03/11; lifecycle Confirmed, cancel/mixed races chưa triển khai |
+| R-F06 | UC-ORD01/02/03/04/05/06/07 hiện có | [OrdersController](../src/OrderInventory.Api/Controllers/OrdersController.cs), [OrderService](../src/OrderInventory.Application/Orders/OrderService.cs), [OrderLifecyclePolicy](../src/OrderInventory.Application/Orders/OrderLifecyclePolicy.cs), [Order/OrderLine](../src/OrderInventory.Domain/Orders/Order.cs) | QA-02/03/11; lifecycle Confirmed; source có, verification theo execution report local |
 | R-F07 | UC-REP01…03 | ReportsController, RevenueReadService, RevenuePolicy, IRevenueQuery | QA-01/07; TBD-06 |
 | R-F08 | UC-USR01 umbrella; UC-USR02, UC-USR03, UC-USR04, UC-USR05, UC-USR06 | [UsersController](../src/OrderInventory.Api/Controllers/UsersController.cs), [UserAdministrationService](../src/OrderInventory.Application/Identity/UserAdministrationService.cs), [UserAccount](../src/OrderInventory.Domain/Identity/UserAccount.cs) | QA-01; BR-19/20, Identity tests hiện có |
 | R-T01 | Tất cả UC | [Solution/project references](../OrderInventory.sln), Application services, Domain thuần | QA-13; nền tảng hiện có |
@@ -1317,10 +1323,10 @@ Identity/catalog/inventory/Customer dẫn tới owner hiện có; Complete có o
 | R-T04 | UC-PRD05, UC-ORD03; UC-REP01…03 đọc lịch sử | OrderLine snapshots, historical read projections, giữ Product reference | QA-05; TBD-04/11 |
 | R-T05 | UC-ORD01/06/07; UC-INV05 | [OrderService](../src/OrderInventory.Application/Orders/OrderService.cs), IUnitOfWorkTransaction, IInventoryWriter, [EfOrderData](../src/OrderInventory.Infrastructure/Persistence/EfOrderData.cs) | QA-02; SQL rollback/source/race tests local, evidence execution report |
 | R-T06 | UC-ORD07, UC-INV03; mọi UC thay đổi tồn | StockRules, conditional update, check constraint | QA-03; gate TBD-01 |
-| R-T07 | UC-INV02/03/05, UC-ORD07; UC-ORD04 nếu hoàn kho | InventoryMovement, shared transaction writer | QA-04/11; không có write-behind history |
+| R-T07 | UC-INV02/03/05, UC-ORD07; UC-ORD04 hoàn kho | InventoryMovement, shared transaction writer | QA-04/11; không có write-behind history |
 | R-T08 | UC-REP01…03 | SqlRevenueQuery, RevenuePolicy, query/index design | QA-07/12; query plan và oracle TBD-06/14 |
 | R-T09 | Tất cả UC HTTP | OpenAPI description, Serilog integration, correlation | QA-08/09/14; config/sinks TBD-13/14 |
-| R-T10 | UC-AUTH01, UC-USR02…06; UC-ORD/INV tương lai | `Application tests` (local-only), `SQL tests` (local-only), `HTTP tests` (local-only) | QA-10; order/stock tests chưa có |
+| R-T10 | UC-AUTH01, UC-USR02…06, UC-ORD/INV | `Application tests` (local-only), `SQL tests` (local-only), `HTTP tests` (local-only) | QA-10; order/stock tests local-only, kết quả theo execution report |
 | R-T11 | Hỗ trợ mọi UC sau bootstrap | [Compose](../compose.yaml), [DbMigrator](../tools/OrderInventory.DbMigrator/Program.cs), [BootstrapSeedService](../src/OrderInventory.Application/Seeding/BootstrapSeedService.cs), [HealthProbe](../src/OrderInventory.Api/Hosting/HealthProbe.cs) | QA-09; current evidence ở report |
 | R-T12 | Tài liệu hệ thống và API, không phải UC nghiệp vụ | [README](../README.md): ERD Identity, run guide và API owner | AC-11 toàn v1 chờ các phase nghiệp vụ và startup verification |
 | R-T13 | UC-AUTH01, UC-USR04 và hạ tầng mọi UC | `Initialize-Local` (local-only), [PasswordService](../src/OrderInventory.Infrastructure/Identity/PasswordService.cs), [mẫu cấu hình](../.env.example) | QA-08/14; không lưu secret/hash/token trong docs/report |
@@ -1334,7 +1340,7 @@ Identity/catalog/inventory/Customer dẫn tới owner hiện có; Complete có o
 | AC-02 | JWT; Staff bị 403 với endpoint Admin | UC-AUTH01, UC-USR02…06; UC-REP01…03 tương lai | HTTP Identity tests hiện có; kết quả ở report; report security chờ phase 6 |
 | AC-03 | Thiếu kho trả ProblemDetails, không lưu gì | UC-ORD01/07, shared transaction | Snapshot dữ liệu trước/sau failed multiline order; QA-02 |
 | AC-04 | Hai đơn mua đơn vị cuối, đúng một thành công | UC-ORD07, conditional update | SQL Server concurrency test có đồng bộ; QA-03 |
-| AC-05 | Mỗi thay đổi có một history row, số dư đúng | UC-INV02/03/05, UC-ORD07; cancel nếu hoàn kho | Đối soát movement/balance trong fixture; QA-04 |
+| AC-05 | Mỗi thay đổi có một history row, số dư đúng | UC-INV02/03/05, UC-ORD07; UC-ORD04 hoàn kho | Đối soát movement/balance trong fixture; QA-04 |
 | AC-06 | Sản phẩm/đơn paging/filter/sort | UC-PRD01, UC-ORD02 | HTTP/query fixture kiểm scope và thứ tự; QA-06 |
 | AC-07 | Xóa mềm sản phẩm, đơn cũ vẫn đúng | UC-PRD05, UC-ORD03 | Required: create → delete → read order; mở rộng Proposed thêm rename/reprice theo BR-15; QA-05 |
 | AC-08 | Báo cáo đúng dữ liệu mẫu đã biết | UC-REP01…03, RevenuePolicy, SqlRevenueQuery | Oracle theo policy được duyệt, biên ngày/tháng/ranking; QA-07 |
@@ -1342,11 +1348,11 @@ Identity/catalog/inventory/Customer dẫn tới owner hiện có; Complete có o
 | AC-10 | dotnet test pass; test tạo đơn/trừ kho | Application/Domain test boundary | Output suite thực tế, không thay bằng checklist thiết kế; QA-10 |
 | AC-11 | README có ERD, cách chạy, API list | README + thiết kế này làm route ban đầu | ERD/schema và OpenAPI khớp implementation; hướng dẫn chạy được thử lại |
 
-**Trạng thái bằng chứng:** Identity/catalog/stock và Customer CRUD/audit có unit/SQL/HTTP evidence trong report thực thi (local-only). Order create/detail đã có source; evidence SQL/HTTP xem execution report local. Order list đã có source và integration evidence; complete có source, verification theo execution report local. Cancel/hoàn kho và reporting chưa triển khai. Chưa nghiệm thu toàn bộ v1; không suy ra hoàn thành từ tài liệu hoặc số test của các slice đã có.
+**Trạng thái bằng chứng:** Identity/catalog/stock và Customer CRUD/audit có unit/SQL/HTTP evidence trong report thực thi (local-only). Order create/detail đã có source; evidence SQL/HTTP xem execution report local. Order list đã có source và integration evidence; complete có source, verification theo execution report local. Cancel/hoàn kho có source; kiểm chứng5.2/5.3 theo execution report local. Reporting chưa triển khai. Chưa nghiệm thu toàn bộ v1; không suy ra hoàn thành từ tài liệu hoặc số test của các slice đã có.
 
 ### 9.3 Consistency and Change Rules for This Design
 
-- Khi triển khai cancel, đồng bộ UC-ORD04, state constraint, return movement, API và QA-11; RevenuePolicy vẫn cần quyết định riêng TBD-06.
+- Khi đổi lifecycle, đồng bộ UC-ORD04/05, state constraint, return movement, API và QA-11; RevenuePolicy vẫn cần quyết định riêng TBD-06.
 - Khi chốt quyền, dùng cùng matrix cho actor/UC/API/resource policy; không biến ô Staff TBD thành quyền mặc định.
 - Khi chốt SKU/delete/snapshot, đối chiếu conceptual model, UC-PRD03/05, historical query và QA-05.
 - Khi chốt report policy, cập nhật các UC-REP, formula, fixture và query contract; không sửa expected value để che sai lệch query.
@@ -1360,8 +1366,8 @@ Identity/catalog/inventory/Customer dẫn tới owner hiện có; Complete có o
 | `brief.md` (local-only) | Nguồn yêu cầu nghiệp vụ, draft quyền, AC và câu hỏi mở |
 | `report_template.md` (local-only) | Chỉ tham khảo cấu trúc COMET và độ chi tiết; không mang actor/domain/stack vào thiết kế này |
 | [README.md](../README.md) | Điểm vào tài liệu project |
-| [system-design.md](system-design.md) | Contract Identity/catalog/inventory/Customer/Order đã chốt, complete có source; cancel và Reporting còn target triển khai/Proposed; không thay thế brief hoặc tự đóng TBD |
+| [system-design.md](system-design.md) | Contract Identity/catalog/inventory/Customer/Order đã chốt, complete/cancel có source; Reporting còn Proposed; không thay thế brief hoặc tự đóng TBD |
 | `Implementation contract` (local-only) | Gate và lựa chọn thực thi có phân biệt user Confirmed với implementer Selected |
 | `Phase 01–02 report` (local-only) | Bằng chứng stateful và phần verification còn thiếu |
 
-Các executable owner hiện có được dẫn trong README và các dòng Identity/catalog/inventory/Customer ở trên. Customer–Order và complete đã Implemented; cancel chưa triển khai và Reporting vẫn Proposed/TBD; không có deployment production được chọn hoặc thực hiện.
+Các executable owner hiện có được dẫn trong README và các dòng Identity/catalog/inventory/Customer ở trên. Customer–Order và complete/cancel có source; Reporting vẫn Proposed/TBD; không có deployment production được chọn hoặc thực hiện.

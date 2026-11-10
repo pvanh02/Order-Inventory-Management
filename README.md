@@ -1,6 +1,6 @@
 # Order & Inventory API
 
-REST API ASP.NET Core cho một cửa hàng. Hiện có nền tảng bốn tầng, đăng nhập JWT, quản trị tài khoản, CRUD danh mục/sản phẩm/khách hàng, lịch sử thay đổi khách hàng, sổ tồn kho, tạo đơn nguyên tử, tra cứu đơn có phân trang/lọc/sắp xếp và hoàn tất đơn. Hủy/hoàn kho và báo cáo còn thuộc các bước tiếp theo.
+REST API ASP.NET Core cho một cửa hàng. Hiện có nền tảng bốn tầng, đăng nhập JWT, quản trị tài khoản, CRUD danh mục/sản phẩm/khách hàng, lịch sử thay đổi khách hàng, sổ tồn kho, tạo đơn nguyên tử, tra cứu đơn có phân trang/lọc/sắp xếp và vòng đời hoàn tất/hủy đơn có hoàn kho nguyên tử. Báo cáo còn thuộc bước tiếp theo.
 
 - [COMET System Design](docs/system-design.md): requirement/UC/BR, quyết định Identity đã chốt và thiết kế Proposed/TBD còn lại.
 
@@ -85,6 +85,7 @@ Contract DTO/validation thuộc [Application Identity](src/OrderInventory.Applic
 | GET | `/api/v1/orders/{id}` | UC-ORD03 | Admin/Staff xem mọi đơn; 200 OrderDto với snapshots |
 | GET | `/api/v1/orders` | UC-ORD02 | Admin/Staff xem mọi đơn; 200 PagedResult<OrderSummaryDto> |
 | POST | `/api/v1/orders/{id}/complete` | UC-ORD05 | Không body; Admin mọi đơn, Staff chỉ đơn mình tạo; 200 OrderDto |
+| POST | `/api/v1/orders/{id}/cancel` | UC-ORD04 | JSON body `{}` hoặc `reason` optional; Admin mọi đơn, Staff chỉ đơn mình tạo; 200 OrderDto |
 
 Access JWT có hạn 30 phút, không refresh token. Đổi role hoặc active state thực sự làm token cũ hết hiệu lực ở request kế tiếp; không được hạ quyền hay vô hiệu hóa Admin active cuối cùng. Staff gọi user-management trả 403. Hợp đồng lỗi dùng ProblemDetails với `errorCode`, `traceId`, và `errors` cho validation; xem [ProblemResponses](src/OrderInventory.Api/Errors/ProblemResponses.cs) và các kiểm tra HTTP.
 
@@ -98,15 +99,15 @@ Ví dụ tìm khách: `/api/v1/customers?search=An&sort=name&page=1&pageSize=20`
 
 ## Cấu trúc và schema hiện có
 
-Đơn hàng dùng [OrderService](src/OrderInventory.Application/Orders/OrderService.cs), [contracts](src/OrderInventory.Application/Orders/Contracts.cs) và [OrderPricingPolicy](src/OrderInventory.Application/Orders/OrderPricingPolicy.cs); HTTP tại [OrdersController](src/OrderInventory.Api/Controllers/OrdersController.cs). Tối đa 100 dòng đầu vào; gộp productId trùng, quantity sau gộp tối đa int.MaxValue. SKU/tên/giá lấy từ server dưới transaction và giữ snapshot. Giá/tổng là VND nguyên, tối đa 18 chữ số cho từng dòng và cả đơn; vượt giới hạn trả 400. Sale history hỗ trợ `type=Sale`; DB giữ tham chiếu dòng đơn/product, một movement cho mỗi dòng chuẩn hóa. Thiếu kho trả 409 và không lưu một phần đơn/kho/history.
+Đơn hàng dùng [OrderService](src/OrderInventory.Application/Orders/OrderService.cs), [contracts](src/OrderInventory.Application/Orders/Contracts.cs) và [OrderPricingPolicy](src/OrderInventory.Application/Orders/OrderPricingPolicy.cs); HTTP tại [OrdersController](src/OrderInventory.Api/Controllers/OrdersController.cs). Tối đa 100 dòng đầu vào; gộp productId trùng, quantity sau gộp tối đa int.MaxValue. SKU/tên/giá lấy từ server dưới transaction và giữ snapshot. Giá/tổng là VND nguyên, tối đa 18 chữ số cho từng dòng và cả đơn; vượt giới hạn trả 400. History hỗ trợ `type=Sale|CancellationReturn`; DB giữ tham chiếu đúng dòng đơn/product, tối đa một Sale và một CancellationReturn cho mỗi dòng chuẩn hóa. Thiếu kho trả 409 và không lưu một phần đơn/kho/history.
 
 POST tạo đơn không có idempotency key và không tự retry. Nếu lỗi tại commit trả 503 `commit_outcome_unknown`, `orderId` và traceId để đối soát bằng GET trước khi gửi lại. Khi mất toàn bộ phản hồi mạng, không thể suy ra đơn chưa được lưu. GET dùng retained snapshots, không phụ thuộc Product/Customer còn active. Customer contact không được sao chép vào DTO đơn.
 
-Quyết định lifecycle nằm trong [COMET — Business rules](docs/system-design.md#17-business-rule-register). Hoàn tất chuyển Pending → Completed, không đổi tồn/lịch sử kho; `completedAt` và `completedBy` lấy từ server. Gọi hoàn tất lặp trả 200, giữ nguyên audit gốc. Staff hoàn tất đơn người khác trả 403; không tìm thấy đơn trả 404; trạng thái không hợp lệ trả 409 `invalid_order_state`. Commit chưa rõ kết quả dùng cùng contract 503/đối soát, không tự retry. Owners là [OrderLifecyclePolicy](src/OrderInventory.Application/Orders/OrderLifecyclePolicy.cs), [OrderService](src/OrderInventory.Application/Orders/OrderService.cs) và [EfOrderData](src/OrderInventory.Infrastructure/Persistence/EfOrderData.cs). Chưa có cancel endpoint; Cancelled chưa được lưu trong schema hiện tại, `cancelledAt` vẫn null. Chính sách doanh thu chưa được duyệt.
+Quyết định lifecycle nằm trong [COMET — Business rules](docs/system-design.md#17-business-rule-register). Hoàn tất chuyển Pending → Completed, không đổi tồn/lịch sử kho; `completedAt` và `completedBy` lấy từ server. Gọi hoàn tất lặp trả 200, giữ nguyên audit gốc. Staff hoàn tất đơn người khác trả 403; không tìm thấy đơn trả 404; trạng thái không hợp lệ trả 409 `invalid_order_state`. Commit chưa rõ kết quả dùng cùng contract 503/đối soát, không tự retry. Owners là [OrderLifecyclePolicy](src/OrderInventory.Application/Orders/OrderLifecyclePolicy.cs), [OrderService](src/OrderInventory.Application/Orders/OrderService.cs) và [EfOrderData](src/OrderInventory.Infrastructure/Persistence/EfOrderData.cs). Hủy chỉ áp dụng Pending, hoàn lượng gốc một lần cùng transaction với trạng thái và `CancellationReturn`; vẫn hoàn được Product đã xóa mềm. `cancelledAt`/`cancelledBy` lấy từ server, `cancellationReason` giữ lý do ban đầu. Lý do là lựa chọn kỹ thuật Selected: optional, trim tối đa512 ký tự, blank→null; request cần JSON body, `{}` hợp lệ. Lặp hủy trả200 giữ audit/reason gốc; hủy Completed hoặc complete Cancelled trả409. Chính sách doanh thu chưa được duyệt.
 
 List/query contract thuộc [OrderQueryValidation](src/OrderInventory.Application/Orders/OrderQueryValidation.cs), [DTO](src/OrderInventory.Application/Orders/Contracts.cs), [SQL adapter](src/OrderInventory.Infrastructure/Persistence/EfOrderData.cs) và [OpenAPI metadata](src/OrderInventory.Api/OpenApi/OrderListOperationFilter.cs). Ví dụ `/api/v1/orders?search=DEMO-ORDER-ITEM&sort=-createdAt&page=1&pageSize=20`. List trả summary + lineCount, dùng detail để đọc các dòng snapshot; không trả contact Customer. Search tìm SKU/tên snapshot nên vẫn tìm được đơn sau khi Product đổi tên hoặc bị xóa mềm.
 
-Page mặc định1, size20/max100; sort `id`, `createdAt`, `total` và chiều ngược với `-`, default `-createdAt`, ID tăng dần để phân xử tie. Lọc `customerId`, `createdBy`, `productId`, `status=Pending|Completed`, `from`/`to` theo CreatedAt UTC `[from,to)`, `minTotal`/`maxTotal` VND nguyên. Các mặc định/bounds là lựa chọn kỹ thuật cho API v1. Count/filter/sort/page đều thực hiện trong SQL, không tải toàn bộ đơn/dòng vào memory để phân trang.
+Page mặc định1, size20/max100; sort `id`, `createdAt`, `total` và chiều ngược với `-`, default `-createdAt`, ID tăng dần để phân xử tie. Lọc `customerId`, `createdBy`, `productId`, `status=Pending|Completed|Cancelled`, `from`/`to` theo CreatedAt UTC `[from,to)`, `minTotal`/`maxTotal` VND nguyên. Các mặc định/bounds là lựa chọn kỹ thuật cho API v1. Count/filter/sort/page đều thực hiện trong SQL, không tải toàn bộ đơn/dòng vào memory để phân trang.
 
 [OrderInventory.sln](OrderInventory.sln) gồm API → Application → Domain, Infrastructure triển khai các port của Application; Domain không phụ thuộc tầng khác. [DbMigrator](tools/OrderInventory.DbMigrator/Program.cs) là công cụ migration/seed, không phải tầng nghiệp vụ mới. [BootstrapSeedService](src/OrderInventory.Application/Seeding/BootstrapSeedService.cs) sở hữu transaction cho dữ liệu tài khoản và marker seed.
 
@@ -123,19 +124,22 @@ erDiagram
     Customers ||--o{ Orders : places
     UserAccounts ||--o{ Orders : creates
     UserAccounts |o--o{ Orders : completes
+    UserAccounts |o--o{ Orders : cancels
     Orders ||--|{ OrderLines : contains
     Products ||--o{ OrderLines : referencedBy
-    OrderLines |o--o| InventoryMovements : saleSource
+    OrderLines |o--o{ InventoryMovements : saleOrCancellationSource
     Orders {
         int Id PK
         int CustomerId FK
         int CreatedBy FK
         datetimeoffset CreatedAt
-        int Status "Pending or Completed"
+        int Status "Pending, Completed or Cancelled"
         decimal Total "whole VND"
         datetimeoffset CompletedAt "nullable"
         int CompletedBy FK "nullable"
         datetimeoffset CancelledAt "nullable"
+        int CancelledBy FK "nullable"
+        nvarchar CancellationReason "optional, max 512"
         rowversion RowVersion
     }
     OrderLines {
@@ -187,12 +191,12 @@ erDiagram
     }
     InventoryMovements {
         bigint Id PK
-        int OrderLineId FK "nullable, unique sale source with matching ProductId"
+        int OrderLineId FK "nullable, unique with Type; matching ProductId"
         int ProductId FK
         int ActorId FK
         int Delta
         int BalanceAfter
-        int Type
+        int Type "Receipt, Adjustment, Sale, CancellationReturn"
         nvarchar Reason
         datetimeoffset OccurredAt
     }
