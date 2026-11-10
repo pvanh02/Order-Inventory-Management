@@ -26,7 +26,22 @@ public sealed class EfOrderData(OrderInventoryDbContext context) : IOrderData
         var order = await context.Orders.AsNoTracking().Include(item => item.Lines).SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
         return order is null ? null : new(order.Id, order.CustomerId, order.CreatedBy, order.CreatedAt, order.Status.ToString(), order.Total,
             order.CompletedAt, order.CancelledAt, order.Lines.OrderBy(line => line.ProductId).Select(line => new OrderLineDto(line.Id, line.ProductId,
-                line.Quantity, line.SkuSnapshot, line.NameSnapshot, line.UnitPriceSnapshot, line.LineTotal)).ToArray());
+                line.Quantity, line.SkuSnapshot, line.NameSnapshot, line.UnitPriceSnapshot, line.LineTotal)).ToArray()) { CompletedBy = order.CompletedBy };
+    }
+    public async Task<OrderLifecycleState?> LockLifecycleAsync(int id, CancellationToken cancellationToken)
+    {
+        RequireTransaction();
+        return await PersistenceErrors.ExecuteAsync(() => context.Orders
+            .FromSqlInterpolated($"SELECT * FROM [Orders] WITH (UPDLOCK, HOLDLOCK) WHERE [Id] = {id}")
+            .AsNoTracking().Select(item => new OrderLifecycleState(item.Id, item.CreatedBy, item.Status))
+            .SingleOrDefaultAsync(cancellationToken));
+    }
+    public async Task<bool> TryCompleteAsync(int id, int actorId, DateTimeOffset completedAt, CancellationToken cancellationToken)
+    {
+        RequireTransaction();
+        var affected = await PersistenceErrors.ExecuteAsync(() => context.Database.ExecuteSqlInterpolatedAsync(
+            $"UPDATE [Orders] SET [Status] = 2, [CompletedAt] = {completedAt}, [CompletedBy] = {actorId} WHERE [Id] = {id} AND [Status] = 1", cancellationToken));
+        return affected == 1;
     }
     public async Task<PagedResult<OrderSummaryDto>> ListAsync(OrderListQuery query, CancellationToken cancellationToken)
     {
@@ -34,7 +49,11 @@ public sealed class EfOrderData(OrderInventoryDbContext context) : IOrderData
         if (query.CustomerId.HasValue) rows = rows.Where(item => item.CustomerId == query.CustomerId);
         if (query.CreatedBy.HasValue) rows = rows.Where(item => item.CreatedBy == query.CreatedBy);
         if (query.ProductId.HasValue) rows = rows.Where(item => item.Lines.Any(line => line.ProductId == query.ProductId));
-        if (query.Status is not null) rows = rows.Where(item => item.Status == OrderStatus.Pending);
+        if (query.Status is not null)
+        {
+            var status = Enum.Parse<OrderStatus>(query.Status);
+            rows = rows.Where(item => item.Status == status);
+        }
         if (query.Search is not null) rows = rows.Where(item => item.Lines.Any(line => line.SkuSnapshot.Contains(query.Search) || line.NameSnapshot.Contains(query.Search)));
         if (query.From.HasValue) rows = rows.Where(item => item.CreatedAt >= query.From);
         if (query.To.HasValue) rows = rows.Where(item => item.CreatedAt < query.To);

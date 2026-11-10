@@ -336,6 +336,9 @@ namespace OrderInventory.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset?>("CompletedAt")
                         .HasColumnType("datetimeoffset");
 
+                    b.Property<int?>("CompletedBy")
+                        .HasColumnType("int");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("datetimeoffset");
 
@@ -360,6 +363,8 @@ namespace OrderInventory.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CompletedBy");
+
                     b.HasIndex("CreatedBy");
 
                     b.HasIndex("CustomerId");
@@ -368,7 +373,7 @@ namespace OrderInventory.Infrastructure.Persistence.Migrations
 
                     b.ToTable("Orders", null, t =>
                         {
-                            t.HasCheckConstraint("CK_Orders_State", "[Status] = 1 AND [CompletedAt] IS NULL AND [CancelledAt] IS NULL");
+                            t.HasCheckConstraint("CK_Orders_State", "([Status] = 1 AND [CompletedAt] IS NULL AND [CompletedBy] IS NULL AND [CancelledAt] IS NULL) OR ([Status] = 2 AND [CompletedAt] IS NOT NULL AND [CompletedBy] IS NOT NULL AND [CancelledAt] IS NULL)");
 
                             t.HasCheckConstraint("CK_Orders_Total", "[Total] > 0");
                         });
@@ -509,6 +514,11 @@ namespace OrderInventory.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("OrderInventory.Domain.Orders.Order", b =>
                 {
+                    b.HasOne("OrderInventory.Domain.Identity.UserAccount", null)
+                        .WithMany()
+                        .HasForeignKey("CompletedBy")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("OrderInventory.Domain.Identity.UserAccount", null)
                         .WithMany()
                         .HasForeignKey("CreatedBy")
