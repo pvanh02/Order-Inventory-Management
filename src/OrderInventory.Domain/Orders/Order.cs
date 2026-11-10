@@ -14,6 +14,8 @@ public sealed class Order
     public DateTimeOffset? CompletedAt { get; private set; }
     public int? CompletedBy { get; private set; }
     public DateTimeOffset? CancelledAt { get; private set; }
+    public int? CancelledBy { get; private set; }
+    public string? CancellationReason { get; private set; }
     public OrderStatus Status { get; private set; }
     public decimal Total { get; private set; }
     public byte[] RowVersion { get; private set; } = [];

@@ -79,7 +79,8 @@ internal static class CatalogValidation
             if (type.Equals("Receipt", StringComparison.OrdinalIgnoreCase)) type = "Receipt";
             else if (type.Equals("Adjustment", StringComparison.OrdinalIgnoreCase)) type = "Adjustment";
             else if (type.Equals("Sale", StringComparison.OrdinalIgnoreCase)) type = "Sale";
-            else throw Error("type", "Type must be Receipt, Adjustment or Sale.");
+            else if (type.Equals("CancellationReturn", StringComparison.OrdinalIgnoreCase)) type = "CancellationReturn";
+            else throw Error("type", "Use Receipt, Adjustment, Sale or CancellationReturn.");
         }
         if (query.From.HasValue && query.To.HasValue && query.From >= query.To)
             throw Error("to", "The interval must have from before to.");

@@ -48,6 +48,29 @@ public sealed class OrderService(IOrderData data, ICustomerData customers, ICata
         return result;
     }
 
+    public async Task<OrderDto> CancelAsync(Actor actor, int id, CancelOrderRequest request, CancellationToken cancellationToken)
+    {
+        Authorize(actor);
+        var reason = request.Reason?.Trim();
+        if (reason?.Length > 512) throw OrderPricingPolicy.Invalid("reason", "Reason must not exceed 512 characters.");
+        if (string.IsNullOrEmpty(reason)) reason = null;
+        await using var transaction = await data.BeginTransactionAsync(cancellationToken);
+        var state = await data.LockLifecycleAsync(id, cancellationToken) ?? throw new NotFoundException("The order was not found.");
+        if (!OrderLifecyclePolicy.ShouldCancel(actor, state))
+            return await data.ReadAsync(id, cancellationToken) ?? throw new InvalidOperationException("The locked order is missing.");
+        var now = clock.GetUtcNow();
+        if (!await data.TryCancelAsync(id, actor.UserId, now, reason, cancellationToken))
+            throw new ConflictException("invalid_order_state", "The order state changed before cancellation.");
+        var order = await data.ReadAsync(id, cancellationToken) ?? throw new InvalidOperationException("The cancelled order is missing.");
+        foreach (var line in order.Lines.OrderBy(line => line.ProductId))
+            await writer.ApplyAsync(new(line.ProductId, line.Quantity, MovementType.CancellationReturn, actor.UserId, reason, now, line.Id), cancellationToken);
+        await data.SaveChangesAsync(cancellationToken);
+        try { await transaction.CommitAsync(cancellationToken); }
+        catch (ConflictException) { throw; }
+        catch (Exception) { throw new CommitOutcomeUnknownException(id); }
+        return order;
+    }
+
     // Seed owner supplies the active transaction; adapters reject lock/write calls without one.
     internal Task<OrderDto> CreateWithinTransactionAsync(Actor actor, CreateOrderRequest request, CancellationToken cancellationToken)
     {

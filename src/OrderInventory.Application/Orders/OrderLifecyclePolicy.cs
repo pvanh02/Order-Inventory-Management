@@ -7,6 +7,17 @@ namespace OrderInventory.Application.Orders;
 
 public static class OrderLifecyclePolicy
 {
+    public static bool ShouldCancel(Actor actor, OrderLifecycleState order)
+    {
+        if (actor.UserId <= 0 || !Enum.IsDefined(actor.Role) || actor.Role == UserRole.Staff && actor.UserId != order.CreatedBy)
+            throw new ForbiddenException();
+        return order.Status switch
+        {
+            OrderStatus.Pending => true,
+            OrderStatus.Cancelled => false,
+            _ => throw new ConflictException("invalid_order_state", "The order cannot be cancelled in its current state.")
+        };
+    }
     public static bool ShouldComplete(Actor actor, OrderLifecycleState order)
     {
         if (actor.UserId <= 0 || !Enum.IsDefined(actor.Role) || actor.Role == UserRole.Staff && actor.UserId != order.CreatedBy)

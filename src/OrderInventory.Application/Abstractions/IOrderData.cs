@@ -13,4 +13,5 @@ public interface IOrderData
     Task<PagedResult<OrderSummaryDto>> ListAsync(OrderListQuery query, CancellationToken cancellationToken);
     Task<OrderLifecycleState?> LockLifecycleAsync(int id, CancellationToken cancellationToken);
     Task<bool> TryCompleteAsync(int id, int actorId, DateTimeOffset completedAt, CancellationToken cancellationToken);
+    Task<bool> TryCancelAsync(int id, int actorId, DateTimeOffset cancelledAt, string? reason, CancellationToken cancellationToken);
 }
